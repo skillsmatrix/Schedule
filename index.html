@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Business Unit Schedule</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Brand */
+            --brand-primary: #E91388;
+            --brand-secondary: #F7941D;
+            --brand-gradient: linear-gradient(135deg, #E91388 0%, #F7941D 100%);
+            
+            /* Neutrals - Light Mode */
+            --slate-950: #0f172a;
+            --slate-900: #1e293b;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --white: #ffffff;
+            
+            /* Surfaces */
+            --bg-primary: var(--slate-100);
+            --bg-secondary: var(--white);
+            --bg-tertiary: var(--slate-50);
+            --bg-header: var(--slate-900);
+            --text-primary: var(--slate-900);
+            --text-secondary: var(--slate-600);
+            --text-muted: var(--slate-500);
+            --border-color: var(--slate-200);
+            --border-strong: var(--slate-300);
+        }
+        
+        /* Dark Mode */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-header: #0f172a;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --border-strong: #475569;
+            
+            --slate-50: #1e293b;
+            --slate-100: #334155;
+            --slate-200: #475569;
+            --slate-700: #cbd5e1;
+            --slate-800: #e2e8f0;
+            --slate-900: #f1f5f9;
+            --white: #1e293b;
+            
+            /* Adjusted status backgrounds for dark mode */
+            --status-leave-bg: rgba(16, 185, 129, 0.2);
+            --status-training-bg: rgba(139, 92, 246, 0.2);
+            --status-sickness-bg: rgba(244, 63, 94, 0.2);
+            --status-office-bg: rgba(14, 165, 233, 0.2);
+            --status-night-bg: rgba(99, 102, 241, 0.2);
+            --status-rest-bg: rgba(245, 158, 11, 0.2);
+            --status-wfh-bg: rgba(20, 184, 166, 0.2);
+            --status-travel-bg: rgba(236, 72, 153, 0.2);
+        }
+            
+            /* Status - Modern, distinct */
+            --status-leave: #10b981;
+            --status-leave-bg: #d1fae5;
+            --status-training: #8b5cf6;
+            --status-training-bg: #ede9fe;
+            --status-sickness: #f43f5e;
+            --status-sickness-bg: #ffe4e6;
+            --status-office: #0ea5e9;
+            --status-office-bg: #e0f2fe;
+            --status-night: #6366f1;
+            --status-night-bg: #e0e7ff;
+            --status-rest: #f59e0b;
+            --status-rest-bg: #fef3c7;
+            --status-wfh: #14b8a6;
+            --status-wfh-bg: #ccfbf1;
+            --status-travel: #ec4899;
+            --status-travel-bg: #fce7f3;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            transition: background 0.3s ease, color 0.3s ease;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* === HEADER === */
+        .header {
+            background: var(--brand-gradient);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .logo-section h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--white);
+            letter-spacing: -0.025em;
+        }
+
+        .logo-section p {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.8);
+            margin-top: 0.125rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .week-navigator {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 0.375rem;
+            border-radius: 0.75rem;
+        }
+
+        .week-navigator button {
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: var(--white);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .week-navigator button:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .week-navigator .week-display {
+            padding: 0 0.75rem;
+            color: var(--white);
+            font-weight: 600;
+            font-size: 0.8125rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .btn-today {
+            background: var(--white);
+            color: var(--brand-primary);
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-today:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* === TOOLBAR === */
+        .toolbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.5rem 0.75rem;
+            padding-right: 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            transition: all 0.15s ease;
+        }
+
+        .filter-select:hover {
+            border-color: var(--border-strong);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 3px rgba(233, 19, 136, 0.1);
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            width: 200px;
+            transition: all 0.15s ease;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 3px rgba(233, 19, 136, 0.1);
+            width: 260px;
+        }
+
+        .search-box::before {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1rem;
+            height: 1rem;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+            background-size: contain;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-strong);
+        }
+
+        .btn-icon.active {
+            background: var(--brand-primary);
+            border-color: var(--brand-primary);
+            color: var(--white);
+        }
+
+        [data-theme="dark"] .btn-icon.active {
+            color: #ffffff;
+        }
+
+        /* === LEGEND === */
+        .legend {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.5rem 2rem;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .legend-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+        }
+
+        /* === SCHEDULE GRID === */
+        .schedule-wrapper {
+            padding: 1.5rem 2rem;
+        }
+
+        .schedule-container {
+            background: var(--bg-secondary);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            transition: background 0.3s ease;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 200px repeat(5, 1fr);
+            min-width: 1000px;
+        }
+
+        .schedule-grid.show-weekends {
+            grid-template-columns: 200px repeat(7, 1fr);
+        }
+
+        /* Header row */
+        .grid-header {
+            display: contents;
+        }
+
+        .grid-header-cell {
+            background: var(--bg-header);
+            padding: 1rem;
+            text-align: center;
+            color: #ffffff;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .grid-header-cell:first-child {
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--slate-400);
+            display: flex;
+            align-items: center;
+        }
+
+        .grid-header-cell.today {
+            background: var(--brand-primary);
+        }
+
+        .grid-header-cell.weekend {
+            background: var(--slate-700);
+        }
+
+        [data-theme="dark"] .grid-header-cell.weekend {
+            background: #0f172a;
+        }
+
+        .day-name {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .day-date {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-top: 0.125rem;
+        }
+
+        .day-month {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            opacity: 0.7;
+        }
+
+        /* Person rows */
+        .person-row {
+            display: contents;
+        }
+
+        .person-row:nth-child(odd) .person-cell,
+        .person-row:nth-child(odd) .day-cell {
+            background: var(--slate-50);
+        }
+
+        .person-row:hover .person-cell,
+        .person-row:hover .day-cell {
+            background: rgba(233, 19, 136, 0.03);
+        }
+
+        .person-cell {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: sticky;
+            left: 0;
+            background: var(--bg-secondary);
+            z-index: 5;
+        }
+
+        .person-row:nth-child(odd) .person-cell {
+            background: var(--bg-tertiary);
+        }
+
+        .person-cell:hover {
+            background: var(--slate-100) !important;
+        }
+
+        .person-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .person-role {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        .person-meta {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.375rem;
+        }
+
+        .person-tag {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.375rem;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 0.25rem;
+            font-weight: 500;
+        }
+
+        /* Day cells */
+        .day-cell {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+            min-height: 100px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--bg-secondary);
+        }
+
+        .day-cell:hover {
+            background: var(--slate-100) !important;
+        }
+
+        .day-cell.weekend {
+            background: var(--bg-tertiary);
+        }
+
+        .person-row:nth-child(odd) .day-cell {
+            background: var(--bg-tertiary);
+        }
+
+        .person-row:nth-child(odd) .day-cell.weekend {
+            background: var(--slate-100);
+        }
+
+        /* === JOB ENTRIES === */
+        .job-entry {
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.625rem;
+            margin-bottom: 0.375rem;
+            border-left: 3px solid var(--brand-primary);
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        [data-theme="dark"] .job-entry {
+            background: var(--slate-100);
+        }
+
+        .job-entry:last-child {
+            margin-bottom: 0;
+        }
+
+        .job-entry:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        /* Full display (1-2 jobs) */
+        .job-entry.full .job-q {
+            font-weight: 700;
+            color: var(--brand-primary);
+            font-size: 0.8125rem;
+        }
+
+        .job-entry.full .job-location {
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 0.125rem;
+        }
+
+        .job-entry.full .job-task {
+            color: var(--text-muted);
+            font-size: 0.6875rem;
+            margin-top: 0.125rem;
+        }
+
+        .job-entry.full .job-partner {
+            color: var(--text-muted);
+            font-size: 0.625rem;
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .job-entry.full .job-partner::before {
+            content: '👤';
+            font-size: 0.625rem;
+        }
+
+        /* Compact display (3-4 jobs) */
+        .job-entry.compact {
+            padding: 0.375rem 0.5rem;
+        }
+
+        .job-entry.compact .job-line {
+            display: flex;
+            gap: 0.375rem;
+            align-items: baseline;
+        }
+
+        .job-entry.compact .job-q {
+            font-weight: 700;
+            color: var(--brand-primary);
+            font-size: 0.75rem;
+        }
+
+        .job-entry.compact .job-location {
+            color: var(--text-secondary);
+            font-size: 0.6875rem;
+        }
+
+        .job-entry.compact .job-task {
+            color: var(--text-muted);
+            font-size: 0.625rem;
+        }
+
+        /* Minimal display (5+ jobs) */
+        .jobs-minimal {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .job-chip {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--brand-primary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .job-chip:hover {
+            background: var(--brand-primary);
+            color: #ffffff;
+            border-color: var(--brand-primary);
+        }
+
+        .jobs-overflow {
+            background: var(--border-color);
+            color: var(--text-secondary);
+            border: none;
+        }
+
+        /* === STATUS ENTRIES === */
+        .status-entry {
+            border-radius: 0.5rem;
+            padding: 0.625rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-height: 80px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .status-entry:hover {
+            filter: brightness(0.95);
+        }
+
+        .status-entry .status-icon {
+            font-size: 1rem;
+        }
+
+        .status-entry.work {
+            border: 1px solid currentColor;
+        }
+
+        .status-entry.non-work {
+            border: 2px dashed currentColor;
+            opacity: 0.9;
+        }
+
+        .status-leave { background: var(--status-leave-bg); color: var(--status-leave); }
+        .status-training { background: var(--status-training-bg); color: var(--status-training); }
+        .status-sickness { background: var(--status-sickness-bg); color: var(--status-sickness); }
+        .status-office { background: var(--status-office-bg); color: var(--status-office); }
+        .status-night { background: var(--status-night-bg); color: var(--status-night); }
+        .status-rest { background: var(--status-rest-bg); color: var(--status-rest); }
+        .status-wfh { background: var(--status-wfh-bg); color: var(--status-wfh); }
+        .status-travel { background: var(--status-travel-bg); color: var(--status-travel); }
+
+        /* === SIDE PANEL === */
+        .panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(2px);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .panel-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 420px;
+            max-width: 100%;
+            height: 100vh;
+            background: var(--bg-secondary);
+            z-index: 101;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .side-panel.open {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .panel-subtitle {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .panel-close {
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: var(--bg-tertiary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .panel-close:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .panel-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .panel-section-title {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .panel-field {
+            margin-bottom: 0.75rem;
+        }
+
+        .panel-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .panel-label {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.125rem;
+        }
+
+        .panel-value {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .panel-jobs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .panel-job-card {
+            background: var(--bg-tertiary);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border-left: 3px solid var(--brand-primary);
+        }
+
+        .panel-job-q {
+            font-weight: 700;
+            color: var(--brand-primary);
+            font-size: 0.9375rem;
+        }
+
+        .panel-job-client {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        .panel-job-details {
+            margin-top: 0.75rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .panel-job-detail {
+            font-size: 0.75rem;
+        }
+
+        .panel-job-detail-label {
+            color: var(--text-muted);
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .panel-job-detail-value {
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 0.125rem;
+        }
+
+        .panel-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .panel-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+
+        .panel-btn-primary {
+            background: var(--brand-gradient);
+            color: #ffffff;
+            border: none;
+        }
+
+        .panel-btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .panel-btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .panel-btn-secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        /* === WORKSTREAM DIVIDERS === */
+        .workstream-divider {
+            display: contents;
+        }
+
+        .workstream-header {
+            grid-column: 1 / -1;
+            background: var(--border-color);
+            padding: 0.5rem 1rem;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1200px) {
+            .schedule-grid {
+                grid-template-columns: 180px repeat(5, 1fr);
+            }
+
+            .schedule-grid.show-weekends {
+                grid-template-columns: 180px repeat(7, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.75rem 1rem;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .logo-section {
+                text-align: center;
+            }
+
+            .logo-section h1 {
+                font-size: 1rem;
+            }
+
+            .logo-section p {
+                font-size: 0.6875rem;
+            }
+
+            .header-actions {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .week-navigator {
+                flex: 1;
+                justify-content: center;
+                max-width: none;
+            }
+
+            .week-navigator .week-display {
+                font-size: 0.75rem;
+                padding: 0 0.5rem;
+            }
+
+            .week-navigator button {
+                width: 1.75rem;
+                height: 1.75rem;
+                font-size: 0.875rem;
+            }
+
+            .btn-today {
+                padding: 0.375rem 0.625rem;
+                font-size: 0.6875rem;
+            }
+
+            .toolbar {
+                padding: 0.5rem 1rem;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .filters {
+                flex-wrap: wrap;
+                gap: 0.375rem;
+            }
+
+            .filter-select {
+                flex: 1;
+                min-width: 100px;
+                font-size: 0.75rem;
+                padding: 0.375rem 0.5rem;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .search-box input {
+                width: 100%;
+                font-size: 0.75rem;
+            }
+
+            .search-box input:focus {
+                width: 100%;
+            }
+
+            .toolbar-actions {
+                justify-content: flex-end;
+            }
+
+            .legend {
+                padding: 0.375rem 1rem;
+                gap: 0.75rem;
+                overflow-x: auto;
+            }
+
+            .legend-items {
+                gap: 0.5rem;
+            }
+
+            .legend-item {
+                font-size: 0.625rem;
+                white-space: nowrap;
+            }
+
+            .schedule-wrapper {
+                padding: 0.5rem;
+            }
+
+            /* Mobile grid - compact with rotated names */
+            .schedule-grid {
+                grid-template-columns: 60px repeat(5, minmax(70px, 1fr));
+                min-width: auto;
+            }
+
+            .schedule-grid.show-weekends {
+                grid-template-columns: 60px repeat(7, minmax(55px, 1fr));
+            }
+
+            .grid-header-cell {
+                padding: 0.5rem 0.25rem;
+            }
+
+            .grid-header-cell:first-child {
+                font-size: 0.5rem;
+            }
+
+            .day-name {
+                font-size: 0.5rem;
+            }
+
+            .day-date {
+                font-size: 1rem;
+            }
+
+            .day-month {
+                font-size: 0.5rem;
+            }
+
+            /* Rotated person names for mobile */
+            .person-cell {
+                padding: 0.375rem;
+                min-height: 80px;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                transform: rotate(180deg);
+                justify-content: flex-end;
+                align-items: center;
+            }
+
+            .person-name {
+                font-size: 0.6875rem;
+                white-space: nowrap;
+            }
+
+            .person-role {
+                display: none;
+            }
+
+            .person-meta {
+                display: none;
+            }
+
+            /* Compact day cells */
+            .day-cell {
+                padding: 0.25rem;
+                min-height: 80px;
+            }
+
+            /* Mobile job entries */
+            .job-entry {
+                padding: 0.25rem 0.375rem;
+                font-size: 0.625rem;
+                border-left-width: 2px;
+            }
+
+            .job-entry.full .job-q {
+                font-size: 0.6875rem;
+            }
+
+            .job-entry.full .job-location {
+                font-size: 0.5625rem;
+            }
+
+            .job-entry.full .job-task,
+            .job-entry.full .job-partner {
+                display: none;
+            }
+
+            .job-entry.compact .job-q {
+                font-size: 0.625rem;
+            }
+
+            .job-entry.compact .job-location,
+            .job-entry.compact .job-task {
+                display: none;
+            }
+
+            /* Mobile job chips */
+            .job-chip {
+                padding: 0.125rem 0.25rem;
+                font-size: 0.5625rem;
+            }
+
+            /* Mobile status entries */
+            .status-entry {
+                padding: 0.375rem;
+                min-height: 60px;
+                font-size: 0.625rem;
+                flex-direction: column;
+                gap: 0.125rem;
+            }
+
+            .status-entry .status-icon {
+                font-size: 0.875rem;
+            }
+
+            .status-entry span:not(.status-icon) {
+                font-size: 0.5rem;
+                line-height: 1.2;
+            }
+
+            /* Workstream header */
+            .workstream-header {
+                padding: 0.375rem 0.5rem;
+                font-size: 0.5625rem;
+            }
+
+            .side-panel {
+                width: 100%;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .header {
+                padding: 0.5rem 0.75rem;
+            }
+
+            .week-navigator {
+                padding: 0.25rem;
+            }
+
+            .week-navigator .week-display {
+                font-size: 0.6875rem;
+            }
+
+            .schedule-grid {
+                grid-template-columns: 50px repeat(5, minmax(55px, 1fr));
+            }
+
+            .schedule-grid.show-weekends {
+                grid-template-columns: 50px repeat(7, minmax(45px, 1fr));
+            }
+
+            .person-cell {
+                min-height: 70px;
+            }
+
+            .person-name {
+                font-size: 0.625rem;
+            }
+
+            .day-cell {
+                min-height: 70px;
+            }
+
+            .job-entry.full .job-location {
+                display: none;
+            }
+
+            .job-entry.full .job-q {
+                font-size: 0.625rem;
+            }
+        }
+
+        /* === SCROLLBAR === */
+        .schedule-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .schedule-container::-webkit-scrollbar-track {
+            background: var(--slate-100);
+        }
+
+        .schedule-container::-webkit-scrollbar-thumb {
+            background: var(--slate-300);
+            border-radius: 4px;
+        }
+
+        .schedule-container::-webkit-scrollbar-thumb:hover {
+            background: var(--slate-400);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-section">
+            <h1>Water Business Unit Schedule</h1>
+            <p>Resource deployment & planning</p>
+        </div>
+        <div class="header-actions">
+            <div class="week-navigator">
+                <button onclick="changeWeek(-1)" aria-label="Previous week">‹</button>
+                <div class="week-display" id="weekDisplay">Week 49 · December 2025</div>
+                <button onclick="changeWeek(1)" aria-label="Next week">›</button>
+            </div>
+            <button class="btn-today" onclick="goToToday()">Today</button>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="filters">
+            <select class="filter-select" id="workstreamFilter" onchange="renderSchedule()">
+                <option value="all">All Workstreams</option>
+                <option value="Project Delivery">Project Delivery</option>
+                <option value="Clean Water Maintenance">Clean Water</option>
+                <option value="Waste Water">Waste Water</option>
+                <option value="Contingent Resources">Contingent</option>
+                <option value="Management/Admin">Management</option>
+            </select>
+            <select class="filter-select" id="clientFilter" onchange="renderSchedule()">
+                <option value="all">All Clients</option>
+                <option value="Thames Water">Thames Water</option>
+                <option value="Southern Water">Southern Water</option>
+                <option value="United Utilities">United Utilities</option>
+                <option value="Severn Trent">Severn Trent</option>
+            </select>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search technicians, jobs..." oninput="renderSchedule()">
+            </div>
+        </div>
+        <div class="toolbar-actions">
+            <button class="btn-icon" id="toggleDarkMode" onclick="toggleDarkMode()" title="Toggle dark mode">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="darkModeIcon">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+            <button class="btn-icon active" id="toggleWeekends" onclick="toggleWeekends()" title="Toggle weekends">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <span class="legend-label">Status</span>
+        <div class="legend-items">
+            <div class="legend-item"><div class="legend-dot" style="background: #6366f1"></div>Night</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #f59e0b"></div>Rest</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #0ea5e9"></div>Office</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #8b5cf6"></div>Training</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #10b981"></div>Leave</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #f43f5e"></div>Sickness</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #14b8a6"></div>WFH</div>
+            <div class="legend-item"><div class="legend-dot" style="background: #ec4899"></div>Travel</div>
+        </div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="schedule-wrapper">
+        <div class="schedule-container" style="overflow-x: auto;">
+            <div class="schedule-grid" id="scheduleGrid">
+                <!-- Rendered by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+    <div class="side-panel" id="sidePanel">
+        <div class="panel-header">
+            <div>
+                <div class="panel-title" id="panelTitle">Technician Details</div>
+                <div class="panel-subtitle" id="panelSubtitle">Monday, 1 December</div>
+            </div>
+            <button class="panel-close" onclick="closePanel()" aria-label="Close">×</button>
+        </div>
+        <div class="panel-body" id="panelBody">
+            <!-- Dynamic content -->
+        </div>
+        <div class="panel-footer">
+            <button class="panel-btn panel-btn-secondary">Edit</button>
+            <button class="panel-btn panel-btn-primary">View in Z-One</button>
+        </div>
+    </div>
+
+    <script>
+        // Status configuration
+        const STATUS_CONFIG = {
+            leave: { icon: '🌴', label: 'Annual Leave', isWork: false },
+            training: { icon: '📚', label: 'Training', isWork: true },
+            sickness: { icon: '🏥', label: 'Sickness', isWork: false },
+            office: { icon: '🏢', label: 'Office', isWork: true },
+            night: { icon: '🌙', label: 'Night Work', isWork: true },
+            rest: { icon: '☀️', label: 'Rest Day', isWork: false },
+            wfh: { icon: '🏠', label: 'WFH', isWork: true },
+            travel: { icon: '🚗', label: 'Travel', isWork: true }
+        };
+
+        // Sample data - will be replaced by Supabase
+        const TECHNICIANS = [];
+
+        // State
+        let currentWeekStart = new Date(2025, 11, 1); // Dec 1, 2025 is a Monday
+        let showWeekends = true;
+        let darkMode = false;
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            document.getElementById('toggleDarkMode').classList.toggle('active', darkMode);
+            
+            // Update icon
+            const icon = document.getElementById('darkModeIcon');
+            if (darkMode) {
+                icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+            } else {
+                icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+            }
+            
+            // Save preference
+            localStorage.setItem('darkMode', darkMode);
+        }
+
+        // Check for saved dark mode preference
+        function initDarkMode() {
+            const saved = localStorage.getItem('darkMode');
+            if (saved === 'true') {
+                toggleDarkMode();
+            }
+        }
+
+        // Helpers
+        function formatDate(date) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return {
+                dayName: days[date.getDay()],
+                dayNum: date.getDate(),
+                month: months[date.getMonth()],
+                full: `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`
+            };
+        }
+
+        function getWeekNumber(date) {
+            const firstDay = new Date(date.getFullYear(), 0, 1);
+            const pastDays = (date - firstDay) / 86400000;
+            return Math.ceil((pastDays + firstDay.getDay() + 1) / 7);
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.toDateString() === today.toDateString();
+        }
+
+        // Navigation
+        function changeWeek(delta) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (delta * 7));
+            renderSchedule();
+        }
+
+        function goToToday() {
+            const today = new Date();
+            const day = today.getDay();
+            currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+            renderSchedule();
+        }
+
+        function toggleWeekends() {
+            showWeekends = !showWeekends;
+            document.getElementById('toggleWeekends').classList.toggle('active', showWeekends);
+            renderSchedule();
+        }
+
+        // Render job cells with smart layout
+        function renderDayCell(dayData, tech, dayIndex) {
+            if (!dayData) return '';
+
+            // Status entry
+            if (dayData.status) {
+                const config = STATUS_CONFIG[dayData.status];
+                const workClass = config.isWork ? 'work' : 'non-work';
+                return `
+                    <div class="status-entry ${workClass} status-${dayData.status}" onclick="openPanel(${tech.id}, ${dayIndex})">
+                        <span class="status-icon">${config.icon}</span>
+                        <span>${dayData.text || config.label}</span>
+                    </div>
+                `;
+            }
+
+            // Jobs
+            const jobs = dayData.jobs || [];
+            if (jobs.length === 0) return '';
+
+            // 1-2 jobs: Full display
+            if (jobs.length <= 2) {
+                return jobs.map(job => `
+                    <div class="job-entry full" onclick="openPanel(${tech.id}, ${dayIndex})">
+                        <div class="job-q">${job.q}</div>
+                        <div class="job-location">${job.location}</div>
+                        <div class="job-task">${job.task}</div>
+                        ${job.partner ? `<div class="job-partner">${job.partner}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // 3-4 jobs: Compact display
+            if (jobs.length <= 4) {
+                return jobs.map(job => `
+                    <div class="job-entry compact" onclick="openPanel(${tech.id}, ${dayIndex})">
+                        <div class="job-line">
+                            <span class="job-q">${job.q}</span>
+                            <span class="job-location">${job.location}</span>
+                        </div>
+                        <div class="job-task">${job.task}</div>
+                    </div>
+                `).join('');
+            }
+
+            // 5+ jobs: Chip display
+            const visibleJobs = jobs.slice(0, 5);
+            const overflow = jobs.length - 5;
+            return `
+                <div class="jobs-minimal" onclick="openPanel(${tech.id}, ${dayIndex})">
+                    ${visibleJobs.map(job => `
+                        <div class="job-chip">${job.q}</div>
+                    `).join('')}
+                    ${overflow > 0 ? `<div class="job-chip jobs-overflow">+${overflow}</div>` : ''}
+                </div>
+            `;
+        }
+
+        // Main render
+        function renderSchedule() {
+            const grid = document.getElementById('scheduleGrid');
+            const workstreamFilter = document.getElementById('workstreamFilter').value;
+            const clientFilter = document.getElementById('clientFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            // Update week display
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('weekDisplay').textContent = `Week ${getWeekNumber(currentWeekStart)} · ${months[currentWeekStart.getMonth()]} ${currentWeekStart.getFullYear()}`;
+
+            // Grid columns
+            const numDays = showWeekends ? 7 : 5;
+            grid.className = `schedule-grid${showWeekends ? ' show-weekends' : ''}`;
+
+            // Build header
+            let html = '<div class="grid-header">';
+            html += '<div class="grid-header-cell">Technician</div>';
+
+            for (let i = 0; i < numDays; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + i);
+                const f = formatDate(date);
+                const todayClass = isToday(date) ? ' today' : '';
+                const weekendClass = (i >= 5) ? ' weekend' : '';
+                html += `
+                    <div class="grid-header-cell${todayClass}${weekendClass}">
+                        <div class="day-name">${f.dayName}</div>
+                        <div class="day-date">${f.dayNum}</div>
+                        <div class="day-month">${f.month}</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+
+            // Filter technicians
+            let techs = TECHNICIANS.filter(t => {
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                if (search && !t.name.toLowerCase().includes(search)) return false;
+                if (clientFilter !== 'all') {
+                    let hasClient = false;
+                    for (let day in t.schedule) {
+                        const jobs = t.schedule[day]?.jobs || [];
+                        if (jobs.some(j => j.client === clientFilter)) hasClient = true;
+                    }
+                    if (!hasClient) return false;
+                }
+                return true;
+            });
+
+            // Group by workstream
+            const workstreams = ['Project Delivery', 'Clean Water Maintenance', 'Waste Water', 'Contingent Resources', 'Management/Admin'];
+            const grouped = {};
+            workstreams.forEach(ws => grouped[ws] = []);
+            techs.forEach(t => {
+                if (grouped[t.workstream]) grouped[t.workstream].push(t);
+            });
+
+            // Render rows
+            workstreams.forEach(ws => {
+                if (grouped[ws].length === 0) return;
+                if (workstreamFilter !== 'all' && workstreamFilter !== ws) return;
+
+                html += `<div class="workstream-divider"><div class="workstream-header">${ws}</div></div>`;
+
+                grouped[ws].forEach(tech => {
+                    html += `<div class="person-row">`;
+                    html += `
+                        <div class="person-cell" onclick="openPanel(${tech.id})">
+                            <div class="person-name">${tech.name}</div>
+                            <div class="person-role">${tech.role}</div>
+                            <div class="person-meta">
+                                <span class="person-tag">${tech.postcode}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    for (let i = 0; i < numDays; i++) {
+                        const weekendClass = (i >= 5) ? ' weekend' : '';
+                        html += `<div class="day-cell${weekendClass}">${renderDayCell(tech.schedule[i], tech, i)}</div>`;
+                    }
+
+                    html += '</div>';
+                });
+            });
+
+            grid.innerHTML = html;
+        }
+
+        // Panel
+        function openPanel(techId, dayIndex = null) {
+            const tech = TECHNICIANS.find(t => t.id === techId);
+            if (!tech) return;
+
+            const panel = document.getElementById('sidePanel');
+            const overlay = document.getElementById('panelOverlay');
+            const title = document.getElementById('panelTitle');
+            const subtitle = document.getElementById('panelSubtitle');
+            const body = document.getElementById('panelBody');
+
+            title.textContent = tech.name;
+
+            if (dayIndex !== null) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + dayIndex);
+                subtitle.textContent = formatDate(date).full;
+
+                const dayData = tech.schedule[dayIndex];
+
+                if (dayData?.status) {
+                    const config = STATUS_CONFIG[dayData.status];
+                    body.innerHTML = `
+                        <div class="panel-section">
+                            <div class="panel-section-title">Status</div>
+                            <div class="status-entry ${config.isWork ? 'work' : 'non-work'} status-${dayData.status}" style="margin: 0;">
+                                <span class="status-icon">${config.icon}</span>
+                                <span>${dayData.text || config.label}</span>
+                            </div>
+                        </div>
+                        <div class="panel-section">
+                            <div class="panel-section-title">Technician</div>
+                            <div class="panel-field">
+                                <div class="panel-label">Role</div>
+                                <div class="panel-value">${tech.role}</div>
+                            </div>
+                            <div class="panel-field">
+                                <div class="panel-label">Workstream</div>
+                                <div class="panel-value">${tech.workstream}</div>
+                            </div>
+                            <div class="panel-field">
+                                <div class="panel-label">Line Manager</div>
+                                <div class="panel-value">${tech.lineManager || '—'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (dayData?.jobs) {
+                    body.innerHTML = `
+                        <div class="panel-section">
+                            <div class="panel-section-title">Jobs (${dayData.jobs.length})</div>
+                            <div class="panel-jobs-list">
+                                ${dayData.jobs.map(job => `
+                                    <div class="panel-job-card">
+                                        <div class="panel-job-q">${job.q}</div>
+                                        <div class="panel-job-client">${job.client}</div>
+                                        <div class="panel-job-details">
+                                            <div class="panel-job-detail">
+                                                <div class="panel-job-detail-label">Location</div>
+                                                <div class="panel-job-detail-value">${job.location}</div>
+                                            </div>
+                                            <div class="panel-job-detail">
+                                                <div class="panel-job-detail-label">Task</div>
+                                                <div class="panel-job-detail-value">${job.task}</div>
+                                            </div>
+                                            ${job.partner ? `
+                                            <div class="panel-job-detail" style="grid-column: span 2;">
+                                                <div class="panel-job-detail-label">Working With</div>
+                                                <div class="panel-job-detail-value">${job.partner}</div>
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="panel-section">
+                            <div class="panel-section-title">Technician</div>
+                            <div class="panel-field">
+                                <div class="panel-label">Base Postcode</div>
+                                <div class="panel-value">${tech.postcode}</div>
+                            </div>
+                            <div class="panel-field">
+                                <div class="panel-label">Line Manager</div>
+                                <div class="panel-value">${tech.lineManager || '—'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `
+                        <div class="panel-section">
+                            <div class="panel-section-title">No Schedule</div>
+                            <p style="color: var(--slate-500); font-size: 0.875rem;">No jobs or status assigned for this day.</p>
+                        </div>
+                    `;
+                }
+            } else {
+                subtitle.textContent = tech.role;
+                body.innerHTML = `
+                    <div class="panel-section">
+                        <div class="panel-section-title">Details</div>
+                        <div class="panel-field">
+                            <div class="panel-label">Workstream</div>
+                            <div class="panel-value">${tech.workstream}</div>
+                        </div>
+                        <div class="panel-field">
+                            <div class="panel-label">Base Postcode</div>
+                            <div class="panel-value">${tech.postcode}</div>
+                        </div>
+                        <div class="panel-field">
+                            <div class="panel-label">Line Manager</div>
+                            <div class="panel-value">${tech.lineManager || '—'}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            panel.classList.add('open');
+            overlay.classList.add('open');
+        }
+
+        function closePanel() {
+            document.getElementById('sidePanel').classList.remove('open');
+            document.getElementById('panelOverlay').classList.remove('open');
+        }
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePanel();
+        });
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            initDarkMode();
+            renderSchedule();
+        });
+    </script>
+</body>
+</html>
