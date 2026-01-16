@@ -1269,20 +1269,17 @@
             <select class="filter-select" id="workstreamFilter" onchange="renderSchedule()">
                 <option value="all">All Workstreams</option>
                 <option value="Project Delivery">Project Delivery</option>
-                <option value="Clean Water Maintenance">Clean Water</option>
+                <option value="Clean Water">Clean Water</option>
                 <option value="Waste Water">Waste Water</option>
                 <option value="Contingent Resources">Contingent</option>
-                <option value="Management/Admin">Management</option>
+                <option value="Management & Admin">Management</option>
             </select>
             <select class="filter-select" id="clientFilter" onchange="renderSchedule()">
                 <option value="all">All Clients</option>
-                <option value="Thames Water">Thames Water</option>
-                <option value="Southern Water">Southern Water</option>
-                <option value="United Utilities">United Utilities</option>
-                <option value="Severn Trent">Severn Trent</option>
+                <!-- Populated dynamically -->
             </select>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Search technicians, jobs..." oninput="renderSchedule()">
+                <input type="text" id="searchInput" placeholder="Search name, Q number, location, role..." oninput="renderSchedule()">
             </div>
         </div>
         <div class="toolbar-actions">
@@ -1376,8 +1373,151 @@
 
         // Sample data - will be replaced by Supabase
         let TECHNICIANS = [];
+        let CLIENTS = [];
+        let ROLES = [];
         let isLoading = true;
         let currentUser = null;
+
+        // Default clients (A-Z order)
+        const DEFAULT_CLIENTS = [
+            'Affinity Water',
+            'Ancala Water',
+            'Anglian Water',
+            'Cambridge Water',
+            'Guernsey Water',
+            'Jersey Water',
+            'Northumbrian Water',
+            'Portsmouth Water',
+            'Scottish Water',
+            'Severn Trent Water',
+            'South East Water',
+            'South West Water',
+            'Southern Water',
+            'Sutton & East Surrey',
+            'Thames Water',
+            'United Utilities',
+            'Welsh Water'
+        ];
+
+        // Default roles in hierarchy order (highest to lowest)
+        const DEFAULT_ROLES = [
+            'Contract Director',
+            'Contingent Resource Manager',
+            'Delivery Manager',
+            'Technical Support – Instrumentation',
+            'Project Manager',
+            'Project Engineer',
+            'Systems Engineer',
+            'Lead Project Coordinator',
+            'Project Coordinator',
+            'Data Analyst',
+            'Senior Supervisor',
+            'Supervisor',
+            'Supervisor – Civil/Mechanical',
+            'Electrician',
+            'ICA Technician',
+            'EC&I Technician',
+            'Logging Tech',
+            'M&E',
+            'M&E Technician',
+            'Mechanical Technician',
+            'Metering Tech',
+            'C&I Technician',
+            'Civil & Mechanical Tech',
+            'Degree Apprentice',
+            'Assistant Technician'
+        ];
+
+        // Role hierarchy for sorting (lower index = higher rank)
+        function getRoleRank(role) {
+            const index = ROLES.indexOf(role);
+            if (index === -1) {
+                // Unknown role goes to the end
+                return ROLES.length + 1;
+            }
+            return index;
+        }
+
+        // Load clients from Supabase
+        async function loadClients() {
+            if (!supabaseClient) return DEFAULT_CLIENTS;
+            
+            const { data, error } = await supabaseClient
+                .from('clients')
+                .select('name')
+                .order('name', { ascending: true });
+            
+            if (error || !data || data.length === 0) {
+                // If no clients table or empty, seed with defaults
+                return DEFAULT_CLIENTS;
+            }
+            return data.map(c => c.name);
+        }
+
+        // Load roles from Supabase
+        async function loadRoles() {
+            if (!supabaseClient) return DEFAULT_ROLES;
+            
+            const { data, error } = await supabaseClient
+                .from('roles')
+                .select('name, rank')
+                .order('rank', { ascending: true });
+            
+            if (error || !data || data.length === 0) {
+                // If no roles table or empty, use defaults
+                return DEFAULT_ROLES;
+            }
+            return data.map(r => r.name);
+        }
+
+        async function addClient(clientName) {
+            if (!supabaseClient || !clientName.trim()) return false;
+            
+            const { error } = await supabaseClient
+                .from('clients')
+                .insert([{ name: clientName.trim() }]);
+            
+            if (error) {
+                console.error('Error adding client:', error);
+                return false;
+            }
+            
+            // Reload clients
+            CLIENTS = await loadClients();
+            updateClientDropdowns();
+            return true;
+        }
+
+        async function addRole(roleName) {
+            if (!supabaseClient || !roleName.trim()) return false;
+            
+            // Add at the end of the hierarchy
+            const newRank = ROLES.length;
+            
+            const { error } = await supabaseClient
+                .from('roles')
+                .insert([{ name: roleName.trim(), rank: newRank }]);
+            
+            if (error) {
+                console.error('Error adding role:', error);
+                return false;
+            }
+            
+            // Reload roles
+            ROLES = await loadRoles();
+            return true;
+        }
+
+        function updateClientDropdowns() {
+            // Update filter dropdown
+            const filterDropdown = document.getElementById('clientFilter');
+            if (filterDropdown) {
+                const currentValue = filterDropdown.value;
+                filterDropdown.innerHTML = '<option value="all">All Clients</option>' +
+                    CLIENTS.map(c => `<option value="${c}">${c}</option>`).join('');
+                filterDropdown.value = currentValue;
+            }
+        }
 
         // Load data from Supabase
         async function loadTechnicians() {
@@ -1475,10 +1615,16 @@
             const endDate = new Date(currentWeekStart);
             endDate.setDate(endDate.getDate() + 6);
             
-            const [technicians, entries] = await Promise.all([
+            const [technicians, entries, clients, roles] = await Promise.all([
                 loadTechnicians(),
-                loadScheduleEntries(currentWeekStart, endDate)
+                loadScheduleEntries(currentWeekStart, endDate),
+                loadClients(),
+                loadRoles()
             ]);
+            
+            CLIENTS = clients;
+            ROLES = roles;
+            updateClientDropdowns();
             
             TECHNICIANS = buildScheduleData(technicians, entries);
             isLoading = false;
@@ -1726,7 +1872,7 @@
                 overflow-y: auto;
             `;
 
-            const workstreamOptions = ['Project Delivery', 'Clean Water Maintenance', 'Waste Water', 'Contingent Resources', 'Management/Admin']
+            const workstreamOptions = ['Project Delivery', 'Clean Water', 'Waste Water', 'Contingent Resources', 'Management & Admin']
                 .map(ws => `<option value="${ws}" ${tech?.workstream === ws ? 'selected' : ''}>${ws}</option>`)
                 .join('');
 
@@ -1750,7 +1896,7 @@
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Role</label>
-                            <input type="text" id="techRole" value="${tech?.role || ''}" style="
+                            <select id="techRole" onchange="handleRoleChange()" style="
                                 width: 100%;
                                 padding: 0.625rem 0.75rem;
                                 border: 1px solid var(--border-color);
@@ -1760,7 +1906,12 @@
                                 background: var(--bg-secondary);
                                 color: var(--text-primary);
                                 box-sizing: border-box;
-                            " placeholder="Electrician">
+                            ">
+                                <option value="">Select role...</option>
+                                ${ROLES.map(r => `<option value="${r}" ${tech?.role === r ? 'selected' : ''}>${r}</option>`).join('')}
+                                ${tech?.role && !ROLES.includes(tech.role) ? `<option value="${tech.role}" selected>${tech.role}</option>` : ''}
+                                <option value="__add_new__">+ Add New Role...</option>
+                            </select>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -1867,6 +2018,30 @@
         function closeTechModal() {
             const overlay = document.getElementById('techModalOverlay');
             if (overlay) overlay.remove();
+        }
+
+        function handleRoleChange() {
+            const roleSelect = document.getElementById('techRole');
+            
+            if (roleSelect.value === '__add_new__') {
+                const newRole = prompt('Enter new role name:');
+                if (newRole && newRole.trim()) {
+                    addRole(newRole.trim()).then(success => {
+                        if (success) {
+                            // Add the new option to the current dropdown
+                            const option = document.createElement('option');
+                            option.value = newRole.trim();
+                            option.textContent = newRole.trim();
+                            roleSelect.insertBefore(option, roleSelect.querySelector('option[value="__add_new__"]'));
+                            roleSelect.value = newRole.trim();
+                        } else {
+                            roleSelect.value = '';
+                        }
+                    });
+                } else {
+                    roleSelect.value = '';
+                }
+            }
         }
 
         async function saveTechnician(techId = null) {
@@ -1992,9 +2167,9 @@
                 .map(([key, val]) => `<option value="${key}" ${existingData?.status === key ? 'selected' : ''}>${val.icon} ${val.label}</option>`)
                 .join('');
 
-            const clientOptions = ['Thames Water', 'Southern Water', 'United Utilities', 'Severn Trent', 'Anglian Water', 'Scottish Water', 'SEW', 'Internal', 'MWH', 'Other']
+            const clientOptions = CLIENTS
                 .map(c => `<option value="${c}">${c}</option>`)
-                .join('');
+                .join('') + '<option value="__add_new__">+ Add New Client...</option>';
 
             const titleText = isEditMode ? 'Edit Entry' : 'Add Entry';
 
@@ -2075,20 +2250,6 @@
                                     ${clientOptions}
                                 </select>
                             </div>
-                        </div>
-                        <div id="otherClientField" style="display: none; margin-bottom: 1rem;">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Other Client Name</label>
-                            <input type="text" id="entryOtherClient" style="
-                                width: 100%;
-                                padding: 0.625rem 0.75rem;
-                                border: 1px solid var(--border-color);
-                                border-radius: 0.5rem;
-                                font-size: 0.875rem;
-                                font-family: inherit;
-                                background: var(--bg-secondary);
-                                color: var(--text-primary);
-                                box-sizing: border-box;
-                            " placeholder="Enter client name">
                         </div>
                         <div style="margin-bottom: 1rem;">
                             <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Location</label>
@@ -2239,14 +2400,12 @@
             if (existingData?.jobs?.[0]?.client) {
                 const clientSelect = document.getElementById('entryClient');
                 const clientValue = existingData.jobs[0].client;
-                // Check if it's a known client
-                const knownClients = ['Thames Water', 'Southern Water', 'United Utilities', 'Severn Trent', 'Anglian Water', 'Scottish Water', 'SEW', 'Internal', 'MWH', 'Other'];
-                if (knownClients.includes(clientValue)) {
+                // Check if it's in our clients list
+                if (CLIENTS.includes(clientValue)) {
                     clientSelect.value = clientValue;
                 } else {
-                    clientSelect.value = 'Other';
-                    document.getElementById('otherClientField').style.display = 'block';
-                    document.getElementById('entryOtherClient').value = clientValue;
+                    // Client not in list - might be a legacy value, just set it
+                    clientSelect.value = clientValue;
                 }
             }
 
@@ -2301,8 +2460,28 @@
 
         function toggleOtherClient() {
             const clientSelect = document.getElementById('entryClient');
-            const otherField = document.getElementById('otherClientField');
-            otherField.style.display = clientSelect.value === 'Other' ? 'block' : 'none';
+            
+            if (clientSelect.value === '__add_new__') {
+                // Prompt for new client name
+                const newClient = prompt('Enter new client name:');
+                if (newClient && newClient.trim()) {
+                    // Add to database and update dropdowns
+                    addClient(newClient.trim()).then(success => {
+                        if (success) {
+                            // Add the new option to the current dropdown
+                            const option = document.createElement('option');
+                            option.value = newClient.trim();
+                            option.textContent = newClient.trim();
+                            clientSelect.insertBefore(option, clientSelect.querySelector('option[value="__add_new__"]'));
+                            clientSelect.value = newClient.trim();
+                        } else {
+                            clientSelect.value = '';
+                        }
+                    });
+                } else {
+                    clientSelect.value = '';
+                }
+            }
         }
 
         function switchEntryTab(tab) {
@@ -2354,10 +2533,7 @@
             
             if (isJob) {
                 const qNumber = document.getElementById('entryQNumber').value;
-                let client = document.getElementById('entryClient').value;
-                if (client === 'Other') {
-                    client = document.getElementById('entryOtherClient').value || 'Other';
-                }
+                const client = document.getElementById('entryClient').value;
                 const location = document.getElementById('entryLocation').value;
                 const task = document.getElementById('entryTask').value;
                 const partner = document.getElementById('entryPartner').value;
@@ -2485,7 +2661,7 @@
                 box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             `;
 
-            const workstreamOptions = ['all', 'Project Delivery', 'Clean Water Maintenance', 'Waste Water', 'Contingent Resources', 'Management/Admin']
+            const workstreamOptions = ['all', 'Project Delivery', 'Clean Water', 'Waste Water', 'Contingent Resources', 'Management & Admin']
                 .map(ws => `<option value="${ws}">${ws === 'all' ? 'All Workstreams' : ws}</option>`)
                 .join('');
 
@@ -3536,7 +3712,33 @@
             // Filter technicians
             let techs = TECHNICIANS.filter(t => {
                 if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
-                if (search && !t.name.toLowerCase().includes(search)) return false;
+                
+                // Enhanced search - check name, role, and all jobs
+                if (search) {
+                    const nameMatch = t.name.toLowerCase().includes(search);
+                    const roleMatch = t.role?.toLowerCase().includes(search);
+                    const postcodeMatch = t.postcode?.toLowerCase().includes(search);
+                    
+                    // Search in all jobs
+                    let jobMatch = false;
+                    for (let day in t.schedule) {
+                        const jobs = t.schedule[day]?.jobs || [];
+                        for (const job of jobs) {
+                            if (job.q?.toLowerCase().includes(search) ||
+                                job.location?.toLowerCase().includes(search) ||
+                                job.task?.toLowerCase().includes(search) ||
+                                job.client?.toLowerCase().includes(search) ||
+                                job.partner?.toLowerCase().includes(search)) {
+                                jobMatch = true;
+                                break;
+                            }
+                        }
+                        if (jobMatch) break;
+                    }
+                    
+                    if (!nameMatch && !roleMatch && !postcodeMatch && !jobMatch) return false;
+                }
+                
                 if (clientFilter !== 'all') {
                     let hasClient = false;
                     for (let day in t.schedule) {
@@ -3549,11 +3751,22 @@
             });
 
             // Group by workstream
-            const workstreams = ['Project Delivery', 'Clean Water Maintenance', 'Waste Water', 'Contingent Resources', 'Management/Admin'];
+            const workstreams = ['Project Delivery', 'Clean Water', 'Waste Water', 'Contingent Resources', 'Management & Admin'];
             const grouped = {};
             workstreams.forEach(ws => grouped[ws] = []);
             techs.forEach(t => {
                 if (grouped[t.workstream]) grouped[t.workstream].push(t);
+            });
+
+            // Sort each workstream group by role hierarchy, then by name
+            workstreams.forEach(ws => {
+                grouped[ws].sort((a, b) => {
+                    const rankA = getRoleRank(a.role);
+                    const rankB = getRoleRank(b.role);
+                    if (rankA !== rankB) return rankA - rankB;
+                    // Same role rank, sort by name A-Z
+                    return a.name.localeCompare(b.name);
+                });
             });
 
             // Render rows
