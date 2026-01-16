@@ -1443,7 +1443,8 @@
                                     client: entry.client,
                                     location: entry.location,
                                     task: entry.task,
-                                    partner: entry.partner
+                                    partner: entry.partner,
+                                    isNight: entry.is_night || false
                                 });
                             }
                         }
@@ -1943,6 +1944,7 @@
             const dateStr = date.toISOString().split('T')[0];
 
             const isStatus = existingData?.status || false;
+            const existingIsNight = existingData?.jobs?.[0]?.isNight || false;
             
             // Build partner dropdown from current technicians
             const partnerOptions = TECHNICIANS
@@ -1955,7 +1957,7 @@
             overlay.style.cssText = `
                 position: fixed;
                 inset: 0;
-                background: ${isNightWork ? 'rgba(0, 0, 20, 0.85)' : 'rgba(15, 23, 42, 0.6)'};
+                background: rgba(15, 23, 42, 0.6);
                 backdrop-filter: blur(4px);
                 z-index: 200;
                 display: flex;
@@ -1966,7 +1968,7 @@
             const modal = document.createElement('div');
             modal.id = 'entryModal';
             modal.style.cssText = `
-                background: ${isNightWork ? '#1e293b' : 'var(--bg-secondary)'};
+                background: var(--bg-secondary);
                 border-radius: 1rem;
                 padding: 2rem;
                 width: 90%;
@@ -1974,7 +1976,6 @@
                 box-shadow: 0 20px 40px rgba(0,0,0,0.3);
                 max-height: 90vh;
                 overflow-y: auto;
-                ${isNightWork ? 'border: 1px solid #6366f1;' : ''}
             `;
 
             const statusOptions = Object.entries(STATUS_CONFIG)
@@ -1986,15 +1987,12 @@
                 .map(c => `<option value="${c}">${c}</option>`)
                 .join('');
 
-            const titleText = isNightWork ? '🌙 Add Night Work' : (isEditMode ? 'Edit Entry' : 'Add Entry');
-            const titleColor = isNightWork ? '#a5b4fc' : 'var(--text-primary)';
-            const subtitleColor = isNightWork ? '#94a3b8' : 'var(--text-muted)';
+            const titleText = isEditMode ? 'Edit Entry' : 'Add Entry';
 
             modal.innerHTML = `
-                <h2 style="margin: 0 0 0.25rem 0; font-size: 1.25rem; color: ${titleColor};">${titleText}</h2>
-                <p style="margin: 0 0 1.5rem 0; font-size: 0.875rem; color: ${subtitleColor};">${tech.name} - ${formatDate(date).full}</p>
+                <h2 style="margin: 0 0 0.25rem 0; font-size: 1.25rem; color: var(--text-primary);">${titleText}</h2>
+                <p style="margin: 0 0 1.5rem 0; font-size: 0.875rem; color: var(--text-muted);">${tech.name} - ${formatDate(date).full}</p>
                 
-                ${!isNightWork ? `
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
                     <button type="button" id="tabJob" onclick="switchEntryTab('job')" style="
                         flex: 1;
@@ -2021,16 +2019,21 @@
                         font-family: inherit;
                     ">Status</button>
                 </div>
-                ` : ''}
 
                 <form id="entryForm">
                     <input type="hidden" id="entryTechId" value="${techId}">
                     <input type="hidden" id="entryDate" value="${dateStr}">
                     <input type="hidden" id="entryDayIndex" value="${dayIndex}">
-                    <input type="hidden" id="entryIsNightWork" value="${isNightWork}">
                     <input type="hidden" id="entryIsEditMode" value="${isEditMode}">
                     
-                    <div id="jobFields" style="display: ${(!isStatus && !isNightWork) ? 'block' : 'none'};">
+                    <div id="jobFields" style="display: ${!isStatus ? 'block' : 'none'};">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; background: ${existingIsNight ? '#312e81' : 'var(--bg-tertiary)'}; border-radius: 0.5rem; border: 1px solid ${existingIsNight ? '#6366f1' : 'var(--border-color)'};" id="nightWorkLabel">
+                                <input type="checkbox" id="entryIsNight" ${existingIsNight ? 'checked' : ''} onchange="toggleNightWorkStyle()" style="width: 1rem; height: 1rem; accent-color: #6366f1;">
+                                <span style="font-size: 1rem;">🌙</span>
+                                <span style="font-size: 0.875rem; font-weight: 500; color: ${existingIsNight ? '#a5b4fc' : 'var(--text-primary)'};" id="nightWorkText">Night Work</span>
+                            </label>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                             <div>
                                 <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Q Number</label>
@@ -2127,24 +2130,7 @@
                         </div>
                     </div>
 
-                    <div id="nightWorkFields" style="display: ${isNightWork ? 'block' : 'none'};">
-                        <div style="margin-bottom: 1rem;">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #a5b4fc; margin-bottom: 0.375rem;">Location / Site</label>
-                            <input type="text" id="entryNightLocation" style="
-                                width: 100%;
-                                padding: 0.625rem 0.75rem;
-                                border: 1px solid #4f46e5;
-                                border-radius: 0.5rem;
-                                font-size: 0.875rem;
-                                font-family: inherit;
-                                background: #334155;
-                                color: #f1f5f9;
-                                box-sizing: border-box;
-                            " placeholder="Where is the night work?">
-                        </div>
-                    </div>
-
-                    <div id="statusFields" style="display: ${(isStatus && !isNightWork) ? 'block' : 'none'};">
+                    <div id="statusFields" style="display: ${isStatus ? 'block' : 'none'};">
                         <div style="margin-bottom: 1rem;">
                             <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Status Type</label>
                             <select id="entryStatusType" style="
@@ -2193,9 +2179,9 @@
                         <div style="flex: 1;"></div>
                         <button type="button" onclick="closeEntryModal()" style="
                             padding: 0.625rem 1rem;
-                            border: 1px solid ${isNightWork ? '#4f46e5' : 'var(--border-color)'};
-                            background: ${isNightWork ? '#334155' : 'var(--bg-secondary)'};
-                            color: ${isNightWork ? '#a5b4fc' : 'var(--text-primary)'};
+                            border: 1px solid var(--border-color);
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
                             border-radius: 0.5rem;
                             font-size: 0.875rem;
                             font-weight: 500;
@@ -2205,7 +2191,7 @@
                         <button type="submit" style="
                             padding: 0.625rem 1.25rem;
                             border: none;
-                            background: ${isNightWork ? '#6366f1' : 'var(--brand-gradient)'};
+                            background: var(--brand-gradient);
                             color: white;
                             border-radius: 0.5rem;
                             font-size: 0.875rem;
@@ -2250,6 +2236,22 @@
             };
         }
 
+        function toggleNightWorkStyle() {
+            const checkbox = document.getElementById('entryIsNight');
+            const label = document.getElementById('nightWorkLabel');
+            const text = document.getElementById('nightWorkText');
+            
+            if (checkbox.checked) {
+                label.style.background = '#312e81';
+                label.style.borderColor = '#6366f1';
+                text.style.color = '#a5b4fc';
+            } else {
+                label.style.background = 'var(--bg-tertiary)';
+                label.style.borderColor = 'var(--border-color)';
+                text.style.color = 'var(--text-primary)';
+            }
+        }
+
         function toggleOtherClient() {
             const clientSelect = document.getElementById('entryClient');
             const otherField = document.getElementById('otherClientField');
@@ -2287,7 +2289,6 @@
         async function saveEntry() {
             const techId = document.getElementById('entryTechId').value;
             const dateStr = document.getElementById('entryDate').value;
-            const isNightWork = document.getElementById('entryIsNightWork').value === 'true';
             const isEditMode = document.getElementById('entryIsEditMode').value === 'true';
 
             // Only clear existing entries if we're in edit mode
@@ -2299,67 +2300,58 @@
                     .eq('date', dateStr);
             }
 
+            const jobFields = document.getElementById('jobFields');
+            const isJob = jobFields.style.display !== 'none';
+
             let entryData;
             
-            if (isNightWork) {
-                const nightLocation = document.getElementById('entryNightLocation').value;
+            if (isJob) {
+                const qNumber = document.getElementById('entryQNumber').value;
+                let client = document.getElementById('entryClient').value;
+                if (client === 'Other') {
+                    client = document.getElementById('entryOtherClient').value || 'Other';
+                }
+                const location = document.getElementById('entryLocation').value;
+                const task = document.getElementById('entryTask').value;
+                const partner = document.getElementById('entryPartner').value;
+                const isNight = document.getElementById('entryIsNight').checked;
+
+                if (!qNumber && !location && !task) {
+                    closeEntryModal();
+                    closePanel();
+                    await loadAllData();
+                    return;
+                }
+
+                entryData = {
+                    technician_id: techId,
+                    date: dateStr,
+                    entry_type: 'job',
+                    q_number: qNumber,
+                    client: client,
+                    location: location,
+                    task: task,
+                    partner: partner || null,
+                    is_night: isNight
+                };
+            } else {
+                const statusType = document.getElementById('entryStatusType').value;
+                const statusText = document.getElementById('entryStatusText').value;
+
+                if (!statusType) {
+                    closeEntryModal();
+                    closePanel();
+                    await loadAllData();
+                    return;
+                }
+
                 entryData = {
                     technician_id: techId,
                     date: dateStr,
                     entry_type: 'status',
-                    status_type: 'night',
-                    status_text: nightLocation || null
+                    status_type: statusType,
+                    status_text: statusText || null
                 };
-            } else {
-                const jobFields = document.getElementById('jobFields');
-                const isJob = jobFields.style.display !== 'none';
-
-                if (isJob) {
-                    const qNumber = document.getElementById('entryQNumber').value;
-                    let client = document.getElementById('entryClient').value;
-                    if (client === 'Other') {
-                        client = document.getElementById('entryOtherClient').value || 'Other';
-                    }
-                    const location = document.getElementById('entryLocation').value;
-                    const task = document.getElementById('entryTask').value;
-                    const partner = document.getElementById('entryPartner').value;
-
-                    if (!qNumber && !location && !task) {
-                        closeEntryModal();
-                        closePanel();
-                        await loadAllData();
-                        return;
-                    }
-
-                    entryData = {
-                        technician_id: techId,
-                        date: dateStr,
-                        entry_type: 'job',
-                        q_number: qNumber,
-                        client: client,
-                        location: location,
-                        task: task,
-                        partner: partner || null
-                    };
-                } else {
-                    const statusType = document.getElementById('entryStatusType').value;
-                    const statusText = document.getElementById('entryStatusText').value;
-
-                    if (!statusType) {
-                        closeEntryModal();
-                        closePanel();
-                        await loadAllData();
-                        return;
-                    }
-
-                    entryData = {
-                        technician_id: techId,
-                        date: dateStr,
-                        entry_type: 'status',
-                        status_type: statusType,
-                        status_text: statusText || null
-                    };
-                }
             }
 
             const { error } = await supabaseClient
@@ -2564,11 +2556,11 @@
             // 1-2 jobs: Full display
             if (jobs.length <= 2) {
                 return jobs.map(job => `
-                    <div class="job-entry full" onclick="openPanel('${tech.id}', ${dayIndex})">
-                        <div class="job-q">${job.q}</div>
-                        <div class="job-location">${job.location}</div>
-                        <div class="job-task">${job.task}</div>
-                        ${job.partner ? `<div class="job-partner">${job.partner}</div>` : ''}
+                    <div class="job-entry full ${job.isNight ? 'night-job' : ''}" onclick="openPanel('${tech.id}', ${dayIndex})" style="${job.isNight ? 'background: #312e81; border-left-color: #6366f1;' : ''}">
+                        <div class="job-q" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.isNight ? '🌙 ' : ''}${job.q}</div>
+                        <div class="job-location" style="${job.isNight ? 'color: #c7d2fe;' : ''}">${job.location}</div>
+                        <div class="job-task" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.task}</div>
+                        ${job.partner ? `<div class="job-partner" style="${job.isNight ? 'color: #818cf8;' : ''}">${job.partner}</div>` : ''}
                     </div>
                 `).join('');
             }
@@ -2576,12 +2568,12 @@
             // 3-4 jobs: Compact display
             if (jobs.length <= 4) {
                 return jobs.map(job => `
-                    <div class="job-entry compact" onclick="openPanel('${tech.id}', ${dayIndex})">
+                    <div class="job-entry compact ${job.isNight ? 'night-job' : ''}" onclick="openPanel('${tech.id}', ${dayIndex})" style="${job.isNight ? 'background: #312e81; border-left-color: #6366f1;' : ''}">
                         <div class="job-line">
-                            <span class="job-q">${job.q}</span>
-                            <span class="job-location">${job.location}</span>
+                            <span class="job-q" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.isNight ? '🌙 ' : ''}${job.q}</span>
+                            <span class="job-location" style="${job.isNight ? 'color: #c7d2fe;' : ''}">${job.location}</span>
                         </div>
-                        <div class="job-task">${job.task}</div>
+                        <div class="job-task" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.task}</div>
                     </div>
                 `).join('');
             }
@@ -2592,7 +2584,7 @@
             return `
                 <div class="jobs-minimal" onclick="openPanel('${tech.id}', ${dayIndex})">
                     ${visibleJobs.map(job => `
-                        <div class="job-chip">${job.q}</div>
+                        <div class="job-chip" style="${job.isNight ? 'background: #312e81; color: #a5b4fc;' : ''}">${job.isNight ? '🌙' : ''}${job.q}</div>
                     `).join('')}
                     ${overflow > 0 ? `<div class="job-chip jobs-overflow">+${overflow}</div>` : ''}
                 </div>
@@ -2810,7 +2802,6 @@
                     } else {
                         footer.innerHTML = `
                             <button class="panel-btn panel-btn-secondary" onclick="showAddEntryModal('${tech.id}', ${dayIndex})">Add Entry</button>
-                            <button class="panel-btn panel-btn-secondary" style="background: #6366f1; color: white; border-color: #6366f1;" onclick="showAddEntryModal('${tech.id}', ${dayIndex}, true)">🌙 Night Work</button>
                             <button class="panel-btn panel-btn-primary" onclick="showEditTechnicianModal('${tech.id}')">Technician</button>
                         `;
                     }
