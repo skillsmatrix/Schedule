@@ -3895,8 +3895,8 @@
             const techId = newRecord?.technician_id || oldRecord?.technician_id;
             const dateStr = (newRecord?.date || oldRecord?.date)?.split('T')[0];
             
-            // Also track partner changes - if partner field changed, we need to update partner's cell too
-            const partnerName = newRecord?.partner || oldRecord?.partner;
+            // Track partner from the new record
+            const partnerName = newRecord?.partner;
             
             console.log('Parsed - techId:', techId, 'dateStr:', dateStr, 'partner:', partnerName);
             
@@ -3917,6 +3917,38 @@
                 if (partnerTech) {
                     const partnerKey = `${partnerTech.id}-${dateStr}`;
                     pendingUpdates.set(partnerKey, { techId: partnerTech.id, dateStr, eventType: 'PARTNER_UPDATE' });
+                }
+            }
+            
+            // For INSERT events, also check if this tech had a DIFFERENT partner before
+            // and queue that old partner for refresh too (handles partner changes)
+            if (eventType === 'INSERT' && dateStr) {
+                const tech = TECHNICIANS.find(t => t.id === techId);
+                if (tech) {
+                    // Find which day index this is
+                    const weekDates = [];
+                    for (let i = 0; i < 7; i++) {
+                        const d = new Date(currentWeekStart);
+                        d.setDate(d.getDate() + i);
+                        weekDates.push(toLocalDateString(d));
+                    }
+                    const dayIndex = weekDates.indexOf(dateStr);
+                    
+                    if (dayIndex >= 0 && dayIndex < 7) {
+                        // Check current local data for any existing partners on this day
+                        const currentJobs = tech.schedule[dayIndex]?.jobs || [];
+                        for (const job of currentJobs) {
+                            if (job.partner && job.partner !== partnerName) {
+                                // This is an OLD partner that needs refreshing
+                                const oldPartnerTech = TECHNICIANS.find(t => t.name === job.partner);
+                                if (oldPartnerTech) {
+                                    console.log('Queueing old partner refresh:', job.partner);
+                                    const oldPartnerKey = `${oldPartnerTech.id}-${dateStr}`;
+                                    pendingUpdates.set(oldPartnerKey, { techId: oldPartnerTech.id, dateStr, eventType: 'OLD_PARTNER_UPDATE' });
+                                }
+                            }
+                        }
+                    }
                 }
             }
             
