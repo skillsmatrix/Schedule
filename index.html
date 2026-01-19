@@ -3900,13 +3900,19 @@
             
             console.log('Parsed - techId:', techId, 'dateStr:', dateStr, 'partner:', partnerName);
             
-            if (techId && dateStr) {
-                const key = `${techId}-${dateStr}`;
-                pendingUpdates.set(key, { techId, dateStr, eventType });
+            // If we can't identify the change (DELETE without REPLICA IDENTITY FULL), 
+            // just skip it - the subsequent INSERT events will have full data
+            if (!techId || !dateStr) {
+                console.log('Cannot identify cell for', eventType, '- skipping (waiting for INSERT events with full data)');
+                return;
             }
             
+            // Queue this specific cell update
+            const key = `${techId}-${dateStr}`;
+            pendingUpdates.set(key, { techId, dateStr, eventType });
+            
             // If there's a partner involved, also queue their update
-            if (partnerName && dateStr) {
+            if (partnerName) {
                 const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
                 if (partnerTech) {
                     const partnerKey = `${partnerTech.id}-${dateStr}`;
@@ -3914,30 +3920,16 @@
                 }
             }
             
-            // If we couldn't identify the change, reload all data for current week
-            if (!techId || !dateStr) {
-                console.warn('Cannot identify cell, queueing full week reload');
-                pendingUpdates.set('reload-week', true);
-            }
-            
-            // Debounce - wait 200ms for more updates before processing
+            // Debounce - wait 300ms for more updates before processing
             if (realtimeUpdateTimeout) {
                 clearTimeout(realtimeUpdateTimeout);
             }
             realtimeUpdateTimeout = setTimeout(() => {
                 processQueuedUpdates();
-            }, 200);
+            }, 300);
         }
 
         async function processQueuedUpdates() {
-            // Check if we need to reload the week
-            if (pendingUpdates.has('reload-week')) {
-                pendingUpdates.clear();
-                await loadAllData();
-                showUpdateToast('Schedule updated');
-                return;
-            }
-            
             const updates = Array.from(pendingUpdates.values());
             pendingUpdates.clear();
             
