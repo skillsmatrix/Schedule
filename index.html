@@ -1566,12 +1566,21 @@
                     schedule[i] = { jobs: [] };
                 }
                 
+                // Build date strings for the week to compare against
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(currentWeekStart);
+                    d.setDate(d.getDate() + i);
+                    weekDates.push(toLocalDateString(d));
+                }
+                
                 // Group entries by day
                 entries
                     .filter(e => e.technician_id === tech.id)
                     .forEach(entry => {
-                        const entryDate = new Date(entry.date);
-                        const dayIndex = Math.floor((entryDate - currentWeekStart) / (1000 * 60 * 60 * 24));
+                        // entry.date comes as YYYY-MM-DD string from database
+                        const entryDateStr = entry.date.split('T')[0]; // Handle if it has time component
+                        const dayIndex = weekDates.indexOf(entryDateStr);
                         
                         if (dayIndex >= 0 && dayIndex < 7) {
                             if (entry.entry_type === 'status') {
@@ -2125,7 +2134,8 @@
 
             const date = new Date(currentWeekStart);
             date.setDate(date.getDate() + dayIndex);
-            const dateStr = date.toISOString().split('T')[0];
+            // Use local date format to avoid timezone issues
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
             const isStatus = existingData?.status || false;
             const existingIsNight = existingData?.jobs?.[0]?.isNight || false;
@@ -2598,7 +2608,7 @@
 
             const date = new Date(currentWeekStart);
             date.setDate(date.getDate() + dayIndex);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateString(date);
 
             const { error } = await supabaseClient
                 .from('schedule_entries')
@@ -2633,7 +2643,7 @@
 
             const date = new Date(currentWeekStart);
             date.setDate(date.getDate() + dayIndex);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateString(date);
 
             bulkEntryState.dayIndex = dayIndex;
             bulkEntryState.dateStr = dateStr;
@@ -2729,7 +2739,7 @@
                     " placeholder="e.g. Christmas Day">
                 </div>
 
-                <div style="display: flex; gap: 0.75rem;">
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
                     <button type="button" onclick="closeBulkEntryModal()" style="
                         flex: 1;
                         padding: 0.625rem 1rem;
@@ -2753,8 +2763,20 @@
                         font-weight: 600;
                         cursor: pointer;
                         font-family: inherit;
-                    ">Apply</button>
+                    ">Apply Status</button>
                 </div>
+                <button type="button" onclick="startBulkClear()" style="
+                    width: 100%;
+                    padding: 0.625rem 1rem;
+                    border: 1px solid #f43f5e;
+                    background: rgba(244, 63, 94, 0.1);
+                    color: #f43f5e;
+                    border-radius: 0.5rem;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    font-family: inherit;
+                ">🗑️ Clear Day for Selected Workstream</button>
             `;
 
             overlay.appendChild(modal);
@@ -2792,6 +2814,38 @@
 
             closeBulkEntryModal();
             await processNextBulkEntry();
+        }
+
+        async function startBulkClear() {
+            const workstream = document.getElementById('bulkWorkstream').value;
+            const workstreamLabel = workstream === 'all' ? 'ALL technicians' : `all ${workstream} technicians`;
+            
+            if (!confirm(`Are you sure you want to clear all entries for ${workstreamLabel} on this day?\n\nThis cannot be undone.`)) {
+                return;
+            }
+
+            // Get technicians to clear
+            let techs = TECHNICIANS;
+            if (workstream !== 'all') {
+                techs = techs.filter(t => t.workstream === workstream);
+            }
+
+            const techIds = techs.map(t => t.id);
+            
+            const { error } = await supabaseClient
+                .from('schedule_entries')
+                .delete()
+                .eq('date', bulkEntryState.dateStr)
+                .in('technician_id', techIds);
+
+            if (error) {
+                alert('Error clearing entries: ' + error.message);
+                return;
+            }
+
+            closeBulkEntryModal();
+            await loadAllData();
+            alert(`Cleared entries for ${techs.length} technician(s)`);
         }
 
         async function processNextBulkEntry() {
@@ -3000,37 +3054,69 @@
 
         // ==================== COPY PREVIOUS ====================
 
-        function findPreviousEntry(techId, currentDayIndex) {
+        async function findPreviousDayData(techId, currentDayIndex) {
             const tech = TECHNICIANS.find(t => t.id === techId);
             if (!tech) return null;
 
-            // First check days before in current week
+            // First check days before in current week (going backwards)
             for (let i = currentDayIndex - 1; i >= 0; i--) {
                 const dayData = tech.schedule[i];
-                if (dayData?.jobs?.length > 0) {
-                    return { type: 'job', data: dayData.jobs[0] };
-                }
-                if (dayData?.status) {
-                    return { type: 'status', data: { status: dayData.status, text: dayData.text } };
+                if ((dayData?.jobs?.length > 0) || dayData?.status) {
+                    return { dayIndex: i, data: dayData, fromPreviousWeek: false };
                 }
             }
 
-            // Check if there's any entry in the week after current day
-            for (let i = currentDayIndex + 1; i < 7; i++) {
-                const dayData = tech.schedule[i];
-                if (dayData?.jobs?.length > 0) {
-                    return { type: 'job', data: dayData.jobs[0] };
+            // If nothing found, check previous week from database
+            const prevWeekStart = new Date(currentWeekStart);
+            prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+            const prevWeekEnd = new Date(currentWeekStart);
+            prevWeekEnd.setDate(prevWeekEnd.getDate() - 1);
+
+            const { data: prevEntries, error } = await supabaseClient
+                .from('schedule_entries')
+                .select('*')
+                .eq('technician_id', techId)
+                .gte('date', toLocalDateString(prevWeekStart))
+                .lte('date', toLocalDateString(prevWeekEnd))
+                .order('date', { ascending: false });
+
+            if (error || !prevEntries || prevEntries.length === 0) {
+                return null;
+            }
+
+            // Group by date and return the most recent day's data
+            const entriesByDate = {};
+            prevEntries.forEach(entry => {
+                const dateStr = entry.date.split('T')[0];
+                if (!entriesByDate[dateStr]) {
+                    entriesByDate[dateStr] = { jobs: [] };
                 }
-                if (dayData?.status) {
-                    return { type: 'status', data: { status: dayData.status, text: dayData.text } };
+                if (entry.entry_type === 'status') {
+                    entriesByDate[dateStr] = { status: entry.status_type, text: entry.status_text };
+                } else if (entry.entry_type === 'job') {
+                    entriesByDate[dateStr].jobs.push({
+                        q: entry.q_number,
+                        client: entry.client,
+                        location: entry.location,
+                        task: entry.task,
+                        partner: entry.partner,
+                        isNight: entry.is_night || false,
+                        jobStatus: entry.job_status || 'live'
+                    });
                 }
+            });
+
+            // Get most recent date with data
+            const dates = Object.keys(entriesByDate).sort().reverse();
+            if (dates.length > 0) {
+                return { dateStr: dates[0], data: entriesByDate[dates[0]], fromPreviousWeek: true };
             }
 
             return null;
         }
 
         async function copyPreviousEntry(techId, dayIndex) {
-            const previous = findPreviousEntry(techId, dayIndex);
+            const previous = await findPreviousDayData(techId, dayIndex);
             if (!previous) {
                 alert('No previous entry found to copy');
                 return;
@@ -3038,43 +3124,75 @@
 
             const date = new Date(currentWeekStart);
             date.setDate(date.getDate() + dayIndex);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateString(date);
 
-            let entryData;
-            if (previous.type === 'job') {
-                entryData = {
-                    technician_id: techId,
-                    date: dateStr,
-                    entry_type: 'job',
-                    q_number: previous.data.q,
-                    client: previous.data.client,
-                    location: previous.data.location,
-                    task: previous.data.task,
-                    partner: previous.data.partner || null,
-                    is_night: previous.data.isNight || false,
-                    job_status: previous.data.jobStatus || 'live'
-                };
-            } else {
-                entryData = {
+            const entriesToInsert = [];
+
+            if (previous.data.status) {
+                // Copy status
+                entriesToInsert.push({
                     technician_id: techId,
                     date: dateStr,
                     entry_type: 'status',
                     status_type: previous.data.status,
                     status_text: previous.data.text || null
-                };
+                });
+            } else if (previous.data.jobs && previous.data.jobs.length > 0) {
+                // Copy ALL jobs from that day
+                for (const job of previous.data.jobs) {
+                    entriesToInsert.push({
+                        technician_id: techId,
+                        date: dateStr,
+                        entry_type: 'job',
+                        q_number: job.q,
+                        client: job.client,
+                        location: job.location,
+                        task: job.task,
+                        partner: job.partner || null,
+                        is_night: job.isNight || false,
+                        job_status: job.jobStatus || 'live'
+                    });
+                }
+            }
+
+            if (entriesToInsert.length === 0) {
+                alert('No entries to copy');
+                return;
             }
 
             const { error } = await supabaseClient
                 .from('schedule_entries')
-                .insert([entryData]);
+                .insert(entriesToInsert);
 
             if (error) {
-                alert('Error copying entry: ' + error.message);
+                alert('Error copying entries: ' + error.message);
                 return;
             }
 
             closePanel();
             await loadAllData();
+        }
+
+        // Check if there's any previous entry (for showing copy button)
+        function hasPreviousEntry(techId, currentDayIndex) {
+            const tech = TECHNICIANS.find(t => t.id === techId);
+            if (!tech) return false;
+
+            // Check days before in current week
+            for (let i = currentDayIndex - 1; i >= 0; i--) {
+                const dayData = tech.schedule[i];
+                if ((dayData?.jobs?.length > 0) || dayData?.status) {
+                    return true;
+                }
+            }
+            
+            // For now, also show if it's Monday (could have data from last week)
+            // The actual check happens async when they click copy
+            if (currentDayIndex === 0) {
+                return true; // Show button, will check previous week when clicked
+            }
+
+            return false;
         }
 
         // ==================== CSV UPLOAD ====================
@@ -3563,6 +3681,11 @@
             };
         }
 
+        // Convert date to YYYY-MM-DD string in local timezone (avoids DST issues)
+        function toLocalDateString(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
         function getWeekNumber(date) {
             const firstDay = new Date(date.getFullYear(), 0, 1);
             const pastDays = (date - firstDay) / 86400000;
@@ -3863,12 +3986,16 @@
                     `;
                 } else if (dayData?.jobs && dayData.jobs.length > 0) {
                     const getJobColor = (job) => {
-                        if (job.isNight) return { bg: '#312e81', border: '#6366f1', text: '#a5b4fc' };
+                        if (job.isNight) {
+                            // Night jobs - use indigo background but show status color for the badge
+                            const statusColor = job.jobStatus === 'inactive' ? '#ef4444' : job.jobStatus === 'pending' ? '#f59e0b' : '#22c55e';
+                            return { bg: '#312e81', border: '#6366f1', text: '#c7d2fe', statusColor: statusColor };
+                        }
                         switch(job.jobStatus) {
-                            case 'inactive': return { bg: 'rgba(239,68,68,0.1)', border: '#ef4444', text: '#ef4444' };
-                            case 'pending': return { bg: 'rgba(245,158,11,0.1)', border: '#f59e0b', text: '#f59e0b' };
+                            case 'inactive': return { bg: 'rgba(239,68,68,0.1)', border: '#ef4444', text: 'var(--text-primary)', statusColor: '#ef4444' };
+                            case 'pending': return { bg: 'rgba(245,158,11,0.1)', border: '#f59e0b', text: 'var(--text-primary)', statusColor: '#f59e0b' };
                             case 'live':
-                            default: return { bg: 'rgba(34,197,94,0.1)', border: '#22c55e', text: '#22c55e' };
+                            default: return { bg: 'rgba(34,197,94,0.1)', border: '#22c55e', text: 'var(--text-primary)', statusColor: '#22c55e' };
                         }
                     };
                     body.innerHTML = `
@@ -3877,27 +4004,28 @@
                             <div class="panel-jobs-list">
                                 ${dayData.jobs.map(job => {
                                     const colors = getJobColor(job);
-                                    const statusLabel = job.isNight ? '🌙 Night' : (job.jobStatus === 'inactive' ? 'Inactive' : job.jobStatus === 'pending' ? 'Pending' : 'Live');
+                                    const statusText = job.jobStatus === 'inactive' ? 'Inactive' : job.jobStatus === 'pending' ? 'Pending' : 'Live';
+                                    const statusLabel = job.isNight ? `🌙 Night · ${statusText}` : statusText;
                                     return `
                                     <div class="panel-job-card" style="background: ${colors.bg}; border-left: 3px solid ${colors.border};">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div class="panel-job-q" style="color: ${job.isNight ? colors.text : 'var(--brand-primary)'};">${job.isNight ? '🌙 ' : ''}${job.q}</div>
-                                            <span style="font-size: 0.625rem; padding: 0.125rem 0.5rem; border-radius: 1rem; background: ${colors.border}; color: white; font-weight: 600;">${statusLabel}</span>
+                                            <div class="panel-job-q" style="color: ${job.isNight ? '#a5b4fc' : 'var(--brand-primary)'};">${job.isNight ? '🌙 ' : ''}${job.q}</div>
+                                            <span style="font-size: 0.625rem; padding: 0.125rem 0.5rem; border-radius: 1rem; background: ${colors.statusColor}; color: white; font-weight: 600;">${statusLabel}</span>
                                         </div>
-                                        <div class="panel-job-client">${job.client}</div>
+                                        <div class="panel-job-client" style="color: ${colors.text};">${job.client}</div>
                                         <div class="panel-job-details">
                                             <div class="panel-job-detail">
-                                                <div class="panel-job-detail-label">Location</div>
-                                                <div class="panel-job-detail-value">${job.location}</div>
+                                                <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Location</div>
+                                                <div class="panel-job-detail-value" style="color: ${colors.text};">${job.location}</div>
                                             </div>
                                             <div class="panel-job-detail">
-                                                <div class="panel-job-detail-label">Task</div>
-                                                <div class="panel-job-detail-value">${job.task}</div>
+                                                <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Task</div>
+                                                <div class="panel-job-detail-value" style="color: ${colors.text};">${job.task}</div>
                                             </div>
                                             ${job.partner ? `
                                             <div class="panel-job-detail" style="grid-column: span 2;">
-                                                <div class="panel-job-detail-label">Working With</div>
-                                                <div class="panel-job-detail-value">${job.partner}</div>
+                                                <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Working With</div>
+                                                <div class="panel-job-detail-value" style="color: ${colors.text};">${job.partner}</div>
                                             </div>
                                             ` : ''}
                                         </div>
@@ -3928,9 +4056,9 @@
 
                 // Footer with edit buttons
                 if (currentUser) {
-                    // Find previous entry for this tech
-                    const hasPreviousEntry = findPreviousEntry(tech.id, dayIndex) !== null;
-                    const copyPrevBtn = hasPreviousEntry ? `<button class="panel-btn panel-btn-secondary" onclick="copyPreviousEntry('${tech.id}', ${dayIndex})" title="Copy last activity">📋 Copy</button>` : '';
+                    // Check if there's previous entry for this tech
+                    const showCopyBtn = hasPreviousEntry(tech.id, dayIndex);
+                    const copyPrevBtn = showCopyBtn ? `<button class="panel-btn panel-btn-secondary" onclick="copyPreviousEntry('${tech.id}', ${dayIndex})" title="Copy previous day's entries">📋 Copy</button>` : '';
                     
                     if (hasData) {
                         footer.innerHTML = `
