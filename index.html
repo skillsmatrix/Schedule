@@ -3587,6 +3587,9 @@
         }
 
         // Real-time sync
+        let realtimeUpdateTimeout = null;
+        let pendingUpdates = new Map(); // Map of techId-dayIndex -> dateStr
+
         function setupRealtimeSync() {
             if (!supabaseClient) return;
 
@@ -3609,10 +3612,83 @@
                     { event: '*', schema: 'public', table: 'schedule_entries' },
                     (payload) => {
                         console.log('Schedule changed:', payload);
-                        handleScheduleChange(payload);
+                        queueScheduleUpdate(payload);
                     }
                 )
                 .subscribe();
+        }
+
+        function queueScheduleUpdate(payload) {
+            const { eventType, new: newRecord, old: oldRecord } = payload;
+            
+            // Get the affected technician and date
+            const techId = newRecord?.technician_id || oldRecord?.technician_id;
+            const dateStr = (newRecord?.date || oldRecord?.date)?.split('T')[0];
+            
+            // If we don't have techId or dateStr, queue a full reload
+            if (!techId || !dateStr) {
+                pendingUpdates.set('full-reload', true);
+            } else {
+                // Queue this specific cell update
+                const key = `${techId}-${dateStr}`;
+                pendingUpdates.set(key, { techId, dateStr, eventType });
+            }
+            
+            // Debounce - wait 100ms for more updates before processing
+            if (realtimeUpdateTimeout) {
+                clearTimeout(realtimeUpdateTimeout);
+            }
+            realtimeUpdateTimeout = setTimeout(() => {
+                processQueuedUpdates();
+            }, 100);
+        }
+
+        async function processQueuedUpdates() {
+            // Check if we need a full reload
+            if (pendingUpdates.has('full-reload')) {
+                pendingUpdates.clear();
+                await loadAllData();
+                showUpdateToast('Schedule updated');
+                return;
+            }
+            
+            // Process individual cell updates
+            const updates = Array.from(pendingUpdates.values());
+            pendingUpdates.clear();
+            
+            if (updates.length === 0) return;
+            
+            // Calculate week dates once
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(currentWeekStart);
+                d.setDate(d.getDate() + i);
+                weekDates.push(toLocalDateString(d));
+            }
+            
+            let updatedCount = 0;
+            
+            for (const update of updates) {
+                const { techId, dateStr, eventType } = update;
+                
+                const tech = TECHNICIANS.find(t => t.id === techId);
+                if (!tech) continue;
+                
+                const dayIndex = weekDates.indexOf(dateStr);
+                if (dayIndex < 0 || dayIndex > 6) continue;
+                
+                await reloadTechnicianDay(tech, dayIndex, dateStr);
+                updateCell(tech, dayIndex);
+                updatedCount++;
+            }
+            
+            if (updatedCount > 0) {
+                const message = updates.length === 1 
+                    ? (updates[0].eventType === 'DELETE' ? 'Entry removed' : 
+                       updates[0].eventType === 'INSERT' ? 'New entry added' : 'Entry updated')
+                    : `${updatedCount} cell${updatedCount > 1 ? 's' : ''} updated`;
+                showUpdateToast(message);
+            }
         }
 
         function handleTechnicianChange(payload) {
@@ -3655,64 +3731,6 @@
                     renderSchedule();
                     showUpdateToast('Technician removed');
                 }
-            }
-        }
-
-        async function handleScheduleChange(payload) {
-            const { eventType, new: newRecord, old: oldRecord } = payload;
-            
-            console.log('Schedule change event:', eventType, 'new:', newRecord, 'old:', oldRecord);
-            
-            // Get the affected technician and date
-            // For DELETE, oldRecord might only have 'id' unless REPLICA IDENTITY FULL is set
-            const techId = newRecord?.technician_id || oldRecord?.technician_id;
-            const dateStr = (newRecord?.date || oldRecord?.date)?.split('T')[0];
-            
-            console.log('Parsed techId:', techId, 'dateStr:', dateStr);
-            
-            // If we don't have techId or dateStr (happens with DELETE if REPLICA IDENTITY not set)
-            // Fall back to reloading all data
-            if (!techId || !dateStr) {
-                console.log('Missing techId or dateStr, doing full reload');
-                await loadAllData();
-                showUpdateToast('Schedule updated');
-                return;
-            }
-            
-            const tech = TECHNICIANS.find(t => t.id === techId);
-            if (!tech) {
-                console.log('Tech not found, doing full reload');
-                await loadAllData();
-                return;
-            }
-            
-            // Calculate which day index this affects
-            const weekDates = [];
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(currentWeekStart);
-                d.setDate(d.getDate() + i);
-                weekDates.push(toLocalDateString(d));
-            }
-            const dayIndex = weekDates.indexOf(dateStr);
-            
-            console.log('Week dates:', weekDates, 'dayIndex:', dayIndex);
-            
-            // If the change is not in the current week, ignore it
-            if (dayIndex < 0 || dayIndex > 6) {
-                console.log('Date not in current week, ignoring');
-                return;
-            }
-            
-            if (eventType === 'DELETE') {
-                // Reload just this day's data for this technician
-                await reloadTechnicianDay(tech, dayIndex, dateStr);
-                updateCell(tech, dayIndex);
-                showUpdateToast('Entry removed');
-            } else {
-                // INSERT or UPDATE - reload this day's data
-                await reloadTechnicianDay(tech, dayIndex, dateStr);
-                updateCell(tech, dayIndex);
-                showUpdateToast(eventType === 'INSERT' ? 'New entry added' : 'Entry updated');
             }
         }
 
