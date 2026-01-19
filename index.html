@@ -1615,7 +1615,8 @@
                                     task: entry.task,
                                     partner: entry.partner,
                                     isNight: entry.is_night || false,
-                                    jobStatus: entry.job_status || 'live'
+                                    jobStatus: entry.job_status || 'live',
+                                    notes: entry.notes || ''
                                 });
                             }
                         }
@@ -2344,6 +2345,22 @@
                                 </label>
                             </div>
                         </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Notes (optional)</label>
+                            <textarea id="entryNotes" style="
+                                width: 100%;
+                                padding: 0.625rem 0.75rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.5rem;
+                                font-size: 0.875rem;
+                                font-family: inherit;
+                                background: var(--bg-secondary);
+                                color: var(--text-primary);
+                                box-sizing: border-box;
+                                min-height: 60px;
+                                resize: vertical;
+                            " placeholder="Additional information...">${existingData?.jobs?.[0]?.notes || ''}</textarea>
+                        </div>
                     </div>
 
                     <div id="statusFields" style="display: ${isStatus ? 'block' : 'none'};">
@@ -2598,6 +2615,7 @@
                 const partnerName = document.getElementById('entryPartner').value;
                 const isNight = document.getElementById('entryIsNight').checked;
                 const jobStatus = document.querySelector('input[name="jobStatus"]:checked')?.value || 'live';
+                const notes = document.getElementById('entryNotes').value;
 
                 if (!qNumber && !location && !task) {
                     closeEntryModal();
@@ -2620,7 +2638,8 @@
                     task: task,
                     partner: partnerName || null,
                     is_night: isNight,
-                    job_status: jobStatus
+                    job_status: jobStatus,
+                    notes: notes || null
                 };
 
                 // Create partner entry if partner selected
@@ -2637,7 +2656,8 @@
                             task: task,
                             partner: tech.name, // The original tech is the partner
                             is_night: isNight,
-                            job_status: jobStatus
+                            job_status: jobStatus,
+                            notes: notes || null
                         };
                     }
                 }
@@ -3350,7 +3370,8 @@
                         task: job.task,
                         partner: job.partner || null,
                         is_night: job.isNight || false,
-                        job_status: job.jobStatus || 'live'
+                        job_status: job.jobStatus || 'live',
+                        notes: job.notes || null
                     });
                 }
             }
@@ -3387,7 +3408,8 @@
                             task: entry.task,
                             partner: tech.name,
                             is_night: entry.is_night,
-                            job_status: entry.job_status
+                            job_status: entry.job_status,
+                            notes: entry.notes
                         });
                     }
                 }
@@ -3868,33 +3890,54 @@
             
             console.log('queueScheduleUpdate:', eventType, 'new:', newRecord, 'old:', oldRecord);
             
-            // Get the affected technician and date
+            // Get the affected technician(s) and date
+            // For INSERT/UPDATE we have newRecord, for DELETE we need oldRecord
             const techId = newRecord?.technician_id || oldRecord?.technician_id;
             const dateStr = (newRecord?.date || oldRecord?.date)?.split('T')[0];
             
-            console.log('Parsed - techId:', techId, 'dateStr:', dateStr);
+            // Also track partner changes - if partner field changed, we need to update partner's cell too
+            const partnerName = newRecord?.partner || oldRecord?.partner;
             
-            // If we don't have techId or dateStr, we can't do a targeted update
-            // Instead of full reload, just skip this event (the data will be stale but no jarring refresh)
-            if (!techId || !dateStr) {
-                console.warn('Cannot identify cell for realtime update, skipping. Enable REPLICA IDENTITY FULL on schedule_entries table.');
-                return;
+            console.log('Parsed - techId:', techId, 'dateStr:', dateStr, 'partner:', partnerName);
+            
+            if (techId && dateStr) {
+                const key = `${techId}-${dateStr}`;
+                pendingUpdates.set(key, { techId, dateStr, eventType });
             }
             
-            // Queue this specific cell update
-            const key = `${techId}-${dateStr}`;
-            pendingUpdates.set(key, { techId, dateStr, eventType });
+            // If there's a partner involved, also queue their update
+            if (partnerName && dateStr) {
+                const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
+                if (partnerTech) {
+                    const partnerKey = `${partnerTech.id}-${dateStr}`;
+                    pendingUpdates.set(partnerKey, { techId: partnerTech.id, dateStr, eventType: 'PARTNER_UPDATE' });
+                }
+            }
             
-            // Debounce - wait 150ms for more updates before processing
+            // If we couldn't identify the change, reload all data for current week
+            if (!techId || !dateStr) {
+                console.warn('Cannot identify cell, queueing full week reload');
+                pendingUpdates.set('reload-week', true);
+            }
+            
+            // Debounce - wait 200ms for more updates before processing
             if (realtimeUpdateTimeout) {
                 clearTimeout(realtimeUpdateTimeout);
             }
             realtimeUpdateTimeout = setTimeout(() => {
                 processQueuedUpdates();
-            }, 150);
+            }, 200);
         }
 
         async function processQueuedUpdates() {
+            // Check if we need to reload the week
+            if (pendingUpdates.has('reload-week')) {
+                pendingUpdates.clear();
+                await loadAllData();
+                showUpdateToast('Schedule updated');
+                return;
+            }
+            
             const updates = Array.from(pendingUpdates.values());
             pendingUpdates.clear();
             
@@ -4010,7 +4053,8 @@
                         task: entry.task,
                         partner: entry.partner,
                         isNight: entry.is_night || false,
-                        jobStatus: entry.job_status || 'live'
+                        jobStatus: entry.job_status || 'live',
+                        notes: entry.notes || ''
                     });
                 }
             });
@@ -4463,6 +4507,12 @@
                                             <div class="panel-job-detail" style="grid-column: span 2;">
                                                 <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Working With</div>
                                                 <div class="panel-job-detail-value" style="color: ${colors.text};">${job.partner}</div>
+                                            </div>
+                                            ` : ''}
+                                            ${job.notes ? `
+                                            <div class="panel-job-detail" style="grid-column: span 2;">
+                                                <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Notes</div>
+                                                <div class="panel-job-detail-value" style="color: ${colors.text}; font-style: italic;">${job.notes}</div>
                                             </div>
                                             ` : ''}
                                         </div>
