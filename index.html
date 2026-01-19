@@ -924,6 +924,16 @@
             background: var(--bg-tertiary);
         }
 
+        .panel-btn-danger {
+            background: rgba(244, 63, 94, 0.1);
+            color: #f43f5e;
+            border: 1px solid #f43f5e;
+        }
+
+        .panel-btn-danger:hover {
+            background: rgba(244, 63, 94, 0.2);
+        }
+
         /* === WORKSTREAM DIVIDERS === */
         .workstream-divider {
             display: contents;
@@ -2571,9 +2581,11 @@
             }
             const dayIndex = weekDates.indexOf(dateStr);
 
-            // Get old partner before clearing (for partner sync)
+            // Get old job data for partner sync
             const tech = TECHNICIANS.find(t => t.id === techId);
-            const oldPartnerName = tech?.schedule[dayIndex]?.jobs?.[0]?.partner;
+            const editingJobIndex = window.editingJobIndex;
+            const oldJob = editingJobIndex !== undefined ? tech?.schedule[dayIndex]?.jobs?.[editingJobIndex] : tech?.schedule[dayIndex]?.jobs?.[0];
+            const oldPartnerName = oldJob?.partner;
 
             // Only clear existing entries if we're in edit mode
             if (isEditMode) {
@@ -2586,7 +2598,8 @@
                             .delete()
                             .eq('technician_id', oldPartner.id)
                             .eq('date', dateStr)
-                            .eq('partner', tech.name);
+                            .eq('partner', tech.name)
+                            .eq('q_number', oldJob.q);
                         
                         // Update old partner's cell locally
                         await reloadTechnicianDay(oldPartner, dayIndex, dateStr);
@@ -2594,12 +2607,27 @@
                     }
                 }
                 
-                await supabaseClient
-                    .from('schedule_entries')
-                    .delete()
-                    .eq('technician_id', techId)
-                    .eq('date', dateStr);
+                // Delete only the specific job being edited, not all jobs
+                if (oldJob) {
+                    await supabaseClient
+                        .from('schedule_entries')
+                        .delete()
+                        .eq('technician_id', techId)
+                        .eq('date', dateStr)
+                        .eq('q_number', oldJob.q)
+                        .eq('location', oldJob.location);
+                } else {
+                    // Fallback: delete all entries for this day (for status entries)
+                    await supabaseClient
+                        .from('schedule_entries')
+                        .delete()
+                        .eq('technician_id', techId)
+                        .eq('date', dateStr);
+                }
             }
+            
+            // Clear the editing index
+            window.editingJobIndex = undefined;
 
             const jobFields = document.getElementById('jobFields');
             const isJob = jobFields.style.display !== 'none';
@@ -2788,6 +2816,84 @@
             closeEntryModal();
             closePanel();
             showUpdateToast('Day cleared');
+        }
+
+        // Edit a single job by index
+        function editSingleJob(techId, dayIndex, jobIndex) {
+            const tech = TECHNICIANS.find(t => t.id === techId);
+            if (!tech) return;
+            
+            const job = tech.schedule[dayIndex]?.jobs?.[jobIndex];
+            if (!job) return;
+            
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + dayIndex);
+            const dateStr = toLocalDateString(date);
+            
+            // Create a fake dayData with just this one job for the modal
+            const singleJobData = { jobs: [job] };
+            
+            // Store which job we're editing
+            window.editingJobIndex = jobIndex;
+            
+            showEntryModal(techId, dayIndex, singleJobData, true, job.isNight);
+        }
+
+        // Delete a single job by index
+        async function deleteSingleJob(techId, dayIndex, jobIndex) {
+            const tech = TECHNICIANS.find(t => t.id === techId);
+            if (!tech) return;
+            
+            const job = tech.schedule[dayIndex]?.jobs?.[jobIndex];
+            if (!job) return;
+            
+            if (!confirm(`Delete this job?\n\nQ: ${job.q}\nLocation: ${job.location}`)) return;
+            
+            suppressRealtimeEvents(3000);
+            
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + dayIndex);
+            const dateStr = toLocalDateString(date);
+            
+            // Delete this specific job by matching its fields
+            const { error } = await supabaseClient
+                .from('schedule_entries')
+                .delete()
+                .eq('technician_id', techId)
+                .eq('date', dateStr)
+                .eq('q_number', job.q)
+                .eq('location', job.location);
+            
+            if (error) {
+                alert('Error deleting job: ' + error.message);
+                return;
+            }
+            
+            // If job had a partner, delete their linked entry too
+            if (job.partner) {
+                const partnerTech = TECHNICIANS.find(t => t.name === job.partner);
+                if (partnerTech) {
+                    await supabaseClient
+                        .from('schedule_entries')
+                        .delete()
+                        .eq('technician_id', partnerTech.id)
+                        .eq('date', dateStr)
+                        .eq('partner', tech.name)
+                        .eq('q_number', job.q);
+                    
+                    // Update partner cell
+                    await reloadTechnicianDay(partnerTech, dayIndex, dateStr);
+                    updateCell(partnerTech, dayIndex);
+                }
+            }
+            
+            // Update main tech cell
+            await reloadTechnicianDay(tech, dayIndex, dateStr);
+            updateCell(tech, dayIndex);
+            
+            // Refresh the panel to show updated job list
+            openPanel(techId, dayIndex);
+            showUpdateToast('Job deleted');
         }
 
         // ==================== BULK ENTRY ====================
@@ -4507,10 +4613,38 @@
                         <div class="panel-section">
                             <div class="panel-section-title">Jobs (${dayData.jobs.length})</div>
                             <div class="panel-jobs-list">
-                                ${dayData.jobs.map(job => {
+                                ${dayData.jobs.map((job, jobIndex) => {
                                     const colors = getJobColor(job);
                                     const statusText = job.jobStatus === 'inactive' ? 'Inactive' : job.jobStatus === 'pending' ? 'Pending' : 'Live';
                                     const statusLabel = job.isNight ? `🌙 Night · ${statusText}` : statusText;
+                                    const editBtns = currentUser ? `
+                                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid ${job.isNight ? 'rgba(165,180,252,0.2)' : 'var(--border-color)'};">
+                                            <button onclick="editSingleJob('${tech.id}', ${dayIndex}, ${jobIndex})" style="
+                                                flex: 1;
+                                                padding: 0.375rem 0.5rem;
+                                                border: 1px solid ${job.isNight ? '#818cf8' : 'var(--border-color)'};
+                                                background: ${job.isNight ? 'rgba(129,140,248,0.1)' : 'var(--bg-secondary)'};
+                                                color: ${job.isNight ? '#c7d2fe' : 'var(--text-primary)'};
+                                                border-radius: 0.375rem;
+                                                font-size: 0.75rem;
+                                                font-weight: 500;
+                                                cursor: pointer;
+                                                font-family: inherit;
+                                            ">✏️ Edit</button>
+                                            <button onclick="deleteSingleJob('${tech.id}', ${dayIndex}, ${jobIndex})" style="
+                                                flex: 1;
+                                                padding: 0.375rem 0.5rem;
+                                                border: 1px solid #f43f5e;
+                                                background: rgba(244, 63, 94, 0.1);
+                                                color: #f43f5e;
+                                                border-radius: 0.375rem;
+                                                font-size: 0.75rem;
+                                                font-weight: 500;
+                                                cursor: pointer;
+                                                font-family: inherit;
+                                            ">🗑️ Delete</button>
+                                        </div>
+                                    ` : '';
                                     return `
                                     <div class="panel-job-card" style="background: ${colors.bg}; border-left: 3px solid ${colors.border};">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -4540,6 +4674,7 @@
                                             </div>
                                             ` : ''}
                                         </div>
+                                        ${editBtns}
                                     </div>
                                 `}).join('')}
                             </div>
@@ -4574,7 +4709,7 @@
                     if (hasData) {
                         footer.innerHTML = `
                             <button class="panel-btn panel-btn-secondary" onclick="showAddEntryModal('${tech.id}', ${dayIndex})">+ Add</button>
-                            <button class="panel-btn panel-btn-secondary" onclick="showEditEntryModal('${tech.id}', ${dayIndex})">Edit</button>
+                            <button class="panel-btn panel-btn-danger" onclick="clearDayEntries('${tech.id}', ${dayIndex})">🗑️ Clear Day</button>
                             ${copyPrevBtn}
                             <button class="panel-btn panel-btn-primary" onclick="showEditTechnicianModal('${tech.id}')">Tech</button>
                         `;
