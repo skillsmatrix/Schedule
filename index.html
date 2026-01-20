@@ -121,7 +121,7 @@
         /* === HEADER === */
         .header {
             background: var(--brand-gradient);
-            padding: 1.25rem 2rem;
+            padding: 0.75rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -130,6 +130,9 @@
             box-sizing: border-box;
             flex-wrap: wrap;
             gap: 0.75rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .logo-section h1 {
@@ -220,6 +223,9 @@
             align-items: center;
             gap: 1rem;
             transition: background 0.3s ease;
+            position: sticky;
+            top: 52px; /* Height of header */
+            z-index: 99;
         }
 
         .filters {
@@ -311,6 +317,12 @@
             justify-content: center;
             color: var(--text-secondary);
             transition: all 0.15s ease;
+            padding: 0;
+        }
+
+        .btn-icon svg {
+            display: block;
+            flex-shrink: 0;
         }
 
         .btn-icon:hover {
@@ -337,6 +349,9 @@
             gap: 1.5rem;
             align-items: center;
             transition: background 0.3s ease;
+            position: sticky;
+            top: 104px; /* Header (52px) + Toolbar (52px) */
+            z-index: 98;
         }
 
         .legend-label {
@@ -368,7 +383,7 @@
 
         /* === SCHEDULE GRID === */
         .schedule-wrapper {
-            padding: 1.5rem 2rem;
+            padding: 0 2rem 1.5rem 2rem;
         }
 
         .schedule-container {
@@ -401,7 +416,7 @@
             color: #ffffff;
             font-weight: 600;
             position: sticky;
-            top: 0;
+            top: 140px; /* Header (52px) + Toolbar (52px) + Legend (36px) */
             z-index: 10;
         }
 
@@ -1274,18 +1289,16 @@
 <body>
     <!-- Header -->
     <header class="header">
-        <div class="logo-section">
-            <h1>Water Business Unit Schedule</h1>
-            <p>Resource deployment & planning</p>
-        </div>
-        <div class="header-actions">
+        <div class="header-actions" style="width: 100%; justify-content: space-between;">
             <div class="week-navigator">
                 <button onclick="changeWeek(-1)" aria-label="Previous week">‹</button>
                 <div class="week-display" id="weekDisplay">Week 49 · December 2025</div>
                 <button onclick="changeWeek(1)" aria-label="Next week">›</button>
             </div>
-            <button class="btn-today" onclick="goToToday()">Today</button>
-            <button class="btn-today" id="authBtn" style="background: rgba(255,255,255,0.2); color: white;">🔐 Sign In</button>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn-today" onclick="goToToday()">Today</button>
+                <button class="btn-today" id="authBtn" style="background: rgba(255,255,255,0.2); color: white;">🔐 Sign In</button>
+            </div>
         </div>
     </header>
 
