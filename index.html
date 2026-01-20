@@ -381,6 +381,7 @@
             background: var(--bg-secondary);
             border-radius: 1rem;
             box-shadow: var(--shadow-lg);
+            overflow: hidden;
             transition: background 0.3s ease;
         }
 
@@ -388,7 +389,6 @@
             display: grid;
             grid-template-columns: 200px repeat(5, 1fr);
             min-width: 1000px;
-            overflow-x: auto;
         }
 
         .schedule-grid.show-weekends {
@@ -408,7 +408,7 @@
             font-weight: 600;
             position: sticky;
             top: 0;
-            z-index: 50;
+            z-index: 10;
         }
 
         .grid-header-cell:first-child {
@@ -1379,7 +1379,7 @@
 
     <!-- Schedule -->
     <div class="schedule-wrapper">
-        <div class="schedule-container">
+        <div class="schedule-container" style="overflow-x: auto;">
             <div class="schedule-grid" id="scheduleGrid">
                 <!-- Rendered by JS -->
             </div>
