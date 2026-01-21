@@ -1755,11 +1755,12 @@
             const manageWorkstreamsBtn = document.getElementById('manageWorkstreamsBtn');
             
             if (currentUser) {
-                authBtn.innerHTML = `✓ ${currentUser.email.split('@')[0]}`;
-                authBtn.onclick = signOut;
-                authBtn.title = 'Click to sign out';
+                authBtn.innerHTML = `✓ ${currentUser.email.split('@')[0]} ▾`;
+                authBtn.onclick = toggleUserMenu;
+                authBtn.title = 'Account options';
                 authBtn.style.background = 'rgba(255,255,255,0.9)';
                 authBtn.style.color = 'var(--brand-primary)';
+                authBtn.style.position = 'relative';
                 if (addTechBtn) addTechBtn.style.display = 'flex';
                 if (csvUploadBtn) csvUploadBtn.style.display = 'flex';
                 if (manageTeamBtn) manageTeamBtn.style.display = 'flex';
@@ -1776,6 +1777,279 @@
                 if (manageTeamBtn) manageTeamBtn.style.display = 'none';
                 if (manageRolesBtn) manageRolesBtn.style.display = 'none';
                 if (manageWorkstreamsBtn) manageWorkstreamsBtn.style.display = 'none';
+                // Remove any existing user menu
+                const existingMenu = document.getElementById('userMenu');
+                if (existingMenu) existingMenu.remove();
+            }
+        }
+
+        function toggleUserMenu(e) {
+            e.stopPropagation();
+            const existingMenu = document.getElementById('userMenu');
+            if (existingMenu) {
+                existingMenu.remove();
+                return;
+            }
+
+            const authBtn = document.getElementById('authBtn');
+            const rect = authBtn.getBoundingClientRect();
+
+            const menu = document.createElement('div');
+            menu.id = 'userMenu';
+            menu.style.cssText = `
+                position: fixed;
+                top: ${rect.bottom + 8}px;
+                right: ${window.innerWidth - rect.right}px;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border-color);
+                border-radius: 0.5rem;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                z-index: 300;
+                min-width: 180px;
+                overflow: hidden;
+            `;
+
+            menu.innerHTML = `
+                <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted);">
+                    Signed in as<br>
+                    <strong style="color: var(--text-primary);">${currentUser.email}</strong>
+                </div>
+                <button onclick="showChangePasswordModal()" style="
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: none;
+                    background: transparent;
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                    text-align: left;
+                    cursor: pointer;
+                    font-family: inherit;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                " onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+                    🔑 Change Password
+                </button>
+                <button onclick="signOut()" style="
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: none;
+                    background: transparent;
+                    color: #ef4444;
+                    font-size: 0.875rem;
+                    text-align: left;
+                    cursor: pointer;
+                    font-family: inherit;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                " onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+                    🚪 Sign Out
+                </button>
+            `;
+
+            document.body.appendChild(menu);
+
+            // Close menu when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closeUserMenuOnClickOutside);
+            }, 0);
+        }
+
+        function closeUserMenuOnClickOutside(e) {
+            const menu = document.getElementById('userMenu');
+            const authBtn = document.getElementById('authBtn');
+            if (menu && !menu.contains(e.target) && e.target !== authBtn) {
+                menu.remove();
+                document.removeEventListener('click', closeUserMenuOnClickOutside);
+            }
+        }
+
+        function showChangePasswordModal() {
+            // Close user menu
+            const menu = document.getElementById('userMenu');
+            if (menu) menu.remove();
+            document.removeEventListener('click', closeUserMenuOnClickOutside);
+
+            const overlay = document.createElement('div');
+            overlay.id = 'changePasswordOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(4px);
+                z-index: 200;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--bg-secondary);
+                border-radius: 1rem;
+                padding: 2rem;
+                width: 90%;
+                max-width: 400px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            `;
+
+            modal.innerHTML = `
+                <h2 style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: var(--text-primary);">Change Password</h2>
+                <p style="margin: 0 0 1.5rem 0; font-size: 0.875rem; color: var(--text-muted);">Enter your current password and choose a new one</p>
+                <form id="changePasswordForm">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Current Password</label>
+                        <input type="password" id="currentPassword" required style="
+                            width: 100%;
+                            padding: 0.625rem 0.75rem;
+                            border: 1px solid var(--border-color);
+                            border-radius: 0.5rem;
+                            font-size: 0.875rem;
+                            font-family: inherit;
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                            box-sizing: border-box;
+                        " placeholder="Enter current password">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">New Password</label>
+                        <input type="password" id="newPassword" required minlength="6" style="
+                            width: 100%;
+                            padding: 0.625rem 0.75rem;
+                            border: 1px solid var(--border-color);
+                            border-radius: 0.5rem;
+                            font-size: 0.875rem;
+                            font-family: inherit;
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                            box-sizing: border-box;
+                        " placeholder="Enter new password (min 6 characters)">
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" required minlength="6" style="
+                            width: 100%;
+                            padding: 0.625rem 0.75rem;
+                            border: 1px solid var(--border-color);
+                            border-radius: 0.5rem;
+                            font-size: 0.875rem;
+                            font-family: inherit;
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                            box-sizing: border-box;
+                        " placeholder="Confirm new password">
+                    </div>
+                    <div id="passwordError" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 0.5rem; color: #ef4444; font-size: 0.8125rem;"></div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button type="button" onclick="closeChangePasswordModal()" style="
+                            flex: 1;
+                            padding: 0.625rem 1rem;
+                            border: 1px solid var(--border-color);
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                            border-radius: 0.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                            cursor: pointer;
+                            font-family: inherit;
+                        ">Cancel</button>
+                        <button type="submit" id="changePasswordBtn" style="
+                            flex: 1;
+                            padding: 0.625rem 1rem;
+                            border: none;
+                            background: var(--brand-gradient);
+                            color: white;
+                            border-radius: 0.5rem;
+                            font-size: 0.875rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            font-family: inherit;
+                        ">Change Password</button>
+                    </div>
+                </form>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            document.getElementById('currentPassword').focus();
+
+            document.getElementById('changePasswordForm').onsubmit = async (e) => {
+                e.preventDefault();
+                await handleChangePassword();
+            };
+
+            overlay.onclick = (e) => {
+                if (e.target === overlay) closeChangePasswordModal();
+            };
+        }
+
+        function closeChangePasswordModal() {
+            const overlay = document.getElementById('changePasswordOverlay');
+            if (overlay) overlay.remove();
+        }
+
+        async function handleChangePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordError');
+            const submitBtn = document.getElementById('changePasswordBtn');
+
+            // Validate passwords match
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                errorDiv.textContent = 'New password must be at least 6 characters';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Changing...';
+            errorDiv.style.display = 'none';
+
+            try {
+                // First verify the current password by re-authenticating
+                const { error: signInError } = await supabaseClient.auth.signInWithPassword({
+                    email: currentUser.email,
+                    password: currentPassword
+                });
+
+                if (signInError) {
+                    errorDiv.textContent = 'Current password is incorrect';
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Change Password';
+                    return;
+                }
+
+                // Now update to the new password
+                const { error: updateError } = await supabaseClient.auth.updateUser({
+                    password: newPassword
+                });
+
+                if (updateError) {
+                    errorDiv.textContent = updateError.message;
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Change Password';
+                    return;
+                }
+
+                // Success!
+                closeChangePasswordModal();
+                showUpdateToast('Password changed successfully');
+            } catch (err) {
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Change Password';
             }
         }
 
