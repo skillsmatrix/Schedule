@@ -2826,7 +2826,7 @@
                             font-family: inherit;
                         ">Clear Day</button>` : ''}
                         <div style="flex: 1;"></div>
-                        <button type="button" onclick="closeEntryModal()" style="
+                        <button type="button" onclick="confirmCloseEntryModal()" style="
                             padding: 0.625rem 1rem;
                             border: 1px solid var(--border-color);
                             background: var(--bg-secondary);
@@ -2879,8 +2879,42 @@
             };
 
             overlay.onclick = (e) => {
-                if (e.target === overlay) closeEntryModal();
+                if (e.target === overlay) {
+                    if (hasUnsavedEntryChanges()) {
+                        if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+                            closeEntryModal();
+                        }
+                    } else {
+                        closeEntryModal();
+                    }
+                }
             };
+        }
+
+        function hasUnsavedEntryChanges() {
+            // Check if job tab has any data
+            const qNumber = document.getElementById('entryQNumber')?.value?.trim();
+            const client = document.getElementById('entryClient')?.value;
+            const location = document.getElementById('entryLocation')?.value?.trim();
+            const task = document.getElementById('entryTask')?.value?.trim();
+            const partner = document.getElementById('entryPartner')?.value;
+            const notes = document.getElementById('entryNotes')?.value?.trim();
+            
+            // Check if status tab has data
+            const statusType = document.getElementById('entryStatusType')?.value;
+            const statusText = document.getElementById('entryStatusText')?.value?.trim();
+            
+            // Check which tab is active
+            const jobFields = document.getElementById('jobFields');
+            const isJobTab = jobFields && jobFields.style.display !== 'none';
+            
+            if (isJobTab) {
+                // If on job tab, check if any job fields have data
+                return !!(qNumber || client || location || task || partner || notes);
+            } else {
+                // If on status tab, check if status is selected
+                return !!(statusType || statusText);
+            }
         }
 
         function toggleNightWorkStyle() {
@@ -2969,6 +3003,16 @@
         function closeEntryModal() {
             const overlay = document.getElementById('entryModalOverlay');
             if (overlay) overlay.remove();
+        }
+
+        function confirmCloseEntryModal() {
+            if (hasUnsavedEntryChanges()) {
+                if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+                    closeEntryModal();
+                }
+            } else {
+                closeEntryModal();
+            }
         }
 
         async function saveEntry() {
@@ -6985,7 +7029,15 @@
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePanel();
+            if (e.key === 'Escape') {
+                // Check if entry modal is open
+                const entryModal = document.getElementById('entryModalOverlay');
+                if (entryModal) {
+                    confirmCloseEntryModal();
+                } else {
+                    closePanel();
+                }
+            }
         });
 
         // Init
