@@ -1375,6 +1375,13 @@
                     <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
             </button>
+            <button class="btn-icon" id="statsBtn" onclick="showStatsModal()" title="Analytics Dashboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+            </button>
             <button class="btn-icon" id="toggleDarkMode" onclick="toggleDarkMode()" title="Toggle dark mode">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="darkModeIcon">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -6254,6 +6261,286 @@
                 btn.disabled = false;
                 btn.textContent = 'Copy Week';
             }
+        }
+
+        // Analytics Dashboard
+        function showStatsModal() {
+            const overlay = document.createElement('div');
+            overlay.id = 'statsOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(4px);
+                z-index: 200;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--bg-secondary);
+                border-radius: 1rem;
+                width: 100%;
+                max-width: 900px;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            `;
+
+            // Calculate stats
+            const stats = calculateStats();
+
+            modal.innerHTML = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">📊 Analytics Dashboard</h2>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-muted);">Week ${getWeekNumber(currentWeekStart)} · ${formatDate(currentWeekStart).month} ${currentWeekStart.getFullYear()}</p>
+                    </div>
+                    <button onclick="closeStatsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0.5rem;">&times;</button>
+                </div>
+                
+                <div style="padding: 1.5rem;">
+                    <!-- Summary Cards -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--brand-primary);">${stats.totalJobs}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Total Jobs</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">${stats.liveJobs}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Live</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: #f59e0b;">${stats.pendingJobs}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Pending</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: #ef4444;">${stats.inactiveJobs}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Inactive</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: #6366f1;">${stats.nightJobs}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Night Shifts</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">${stats.utilisation}%</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Utilisation</div>
+                        </div>
+                    </div>
+
+                    <!-- Two Column Layout -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <!-- Workstream Breakdown -->
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem;">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 0.875rem; color: var(--text-primary);">Jobs by Workstream</h3>
+                            ${renderWorkstreamChart(stats.byWorkstream)}
+                        </div>
+
+                        <!-- Client Summary -->
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem;">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 0.875rem; color: var(--text-primary);">Jobs by Client</h3>
+                            ${renderClientChart(stats.byClient)}
+                        </div>
+                    </div>
+
+                    <!-- Technician Workload -->
+                    <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; margin-top: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 0.875rem; color: var(--text-primary);">Technician Workload</h3>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            ${renderTechnicianWorkload(stats.byTechnician)}
+                        </div>
+                    </div>
+
+                    <!-- Daily Breakdown -->
+                    <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; margin-top: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 0.875rem; color: var(--text-primary);">Jobs by Day</h3>
+                        ${renderDailyChart(stats.byDay)}
+                    </div>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            overlay.onclick = (e) => {
+                if (e.target === overlay) closeStatsModal();
+            };
+        }
+
+        function closeStatsModal() {
+            const overlay = document.getElementById('statsOverlay');
+            if (overlay) overlay.remove();
+        }
+
+        function calculateStats() {
+            let totalJobs = 0;
+            let liveJobs = 0;
+            let pendingJobs = 0;
+            let inactiveJobs = 0;
+            let nightJobs = 0;
+            let daysWithWork = 0;
+            let totalPossibleDays = 0;
+
+            const byWorkstream = {};
+            const byClient = {};
+            const byTechnician = {};
+            const byDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+            const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+            TECHNICIANS.forEach(tech => {
+                byTechnician[tech.name] = { jobs: 0, workstream: tech.workstream };
+                
+                if (!byWorkstream[tech.workstream]) {
+                    byWorkstream[tech.workstream] = 0;
+                }
+
+                tech.schedule.forEach((day, dayIndex) => {
+                    totalPossibleDays++;
+                    
+                    if (day?.jobs && day.jobs.length > 0) {
+                        daysWithWork++;
+                        day.jobs.forEach(job => {
+                            totalJobs++;
+                            byTechnician[tech.name].jobs++;
+                            byWorkstream[tech.workstream]++;
+                            byDay[dayNames[dayIndex]]++;
+
+                            if (job.client) {
+                                byClient[job.client] = (byClient[job.client] || 0) + 1;
+                            }
+
+                            if (job.isNight) nightJobs++;
+                            if (job.jobStatus === 'live') liveJobs++;
+                            else if (job.jobStatus === 'pending') pendingJobs++;
+                            else if (job.jobStatus === 'inactive') inactiveJobs++;
+                        });
+                    } else if (day?.status) {
+                        // Count statuses that indicate work
+                        const workStatuses = ['office', 'training', 'travel'];
+                        if (workStatuses.includes(day.status)) {
+                            daysWithWork++;
+                        }
+                    }
+                });
+            });
+
+            const utilisation = totalPossibleDays > 0 
+                ? Math.round((daysWithWork / totalPossibleDays) * 100) 
+                : 0;
+
+            return {
+                totalJobs,
+                liveJobs,
+                pendingJobs,
+                inactiveJobs,
+                nightJobs,
+                utilisation,
+                byWorkstream,
+                byClient,
+                byTechnician,
+                byDay
+            };
+        }
+
+        function renderWorkstreamChart(data) {
+            const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+            const max = Math.max(...entries.map(e => e[1]), 1);
+            
+            if (entries.length === 0) {
+                return '<div style="color: var(--text-muted); font-size: 0.8125rem;">No data</div>';
+            }
+
+            return entries.map(([name, count]) => `
+                <div style="margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">${name}</span>
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary);">${count}</span>
+                    </div>
+                    <div style="height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(count / max) * 100}%; background: var(--brand-gradient); border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderClientChart(data) {
+            const entries = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const max = Math.max(...entries.map(e => e[1]), 1);
+            
+            if (entries.length === 0) {
+                return '<div style="color: var(--text-muted); font-size: 0.8125rem;">No client data</div>';
+            }
+
+            const colors = ['#ec4899', '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
+
+            return entries.map(([name, count], i) => `
+                <div style="margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">${name}</span>
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary);">${count}</span>
+                    </div>
+                    <div style="height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(count / max) * 100}%; background: ${colors[i % colors.length]}; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTechnicianWorkload(data) {
+            const entries = Object.entries(data).sort((a, b) => b[1].jobs - a[1].jobs);
+            const max = Math.max(...entries.map(e => e[1].jobs), 1);
+            
+            if (entries.length === 0) {
+                return '<div style="color: var(--text-muted); font-size: 0.8125rem;">No data</div>';
+            }
+
+            return `
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.5rem;">
+                    ${entries.map(([name, info]) => {
+                        const percentage = (info.jobs / 5) * 100; // Assuming 5 days = 100%
+                        const barColor = percentage >= 80 ? '#22c55e' : percentage >= 50 ? '#f59e0b' : '#ef4444';
+                        return `
+                            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 0.75rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+                                    <div style="font-size: 0.625rem; color: var(--text-muted);">${info.workstream}</div>
+                                </div>
+                                <div style="width: 60px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${Math.min(percentage, 100)}%; background: ${barColor}; border-radius: 3px;"></div>
+                                </div>
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); width: 20px; text-align: right;">${info.jobs}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderDailyChart(data) {
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const max = Math.max(...Object.values(data), 1);
+
+            return `
+                <div style="display: flex; align-items: flex-end; justify-content: space-between; height: 120px; gap: 0.5rem;">
+                    ${days.map(day => {
+                        const count = data[day] || 0;
+                        const height = (count / max) * 100;
+                        const isWeekend = day === 'Sat' || day === 'Sun';
+                        return `
+                            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary);">${count}</div>
+                                <div style="width: 100%; height: 80px; display: flex; align-items: flex-end;">
+                                    <div style="width: 100%; height: ${height}%; background: ${isWeekend ? '#6366f1' : 'var(--brand-gradient)'}; border-radius: 4px 4px 0 0; min-height: ${count > 0 ? '4px' : '0'};"></div>
+                                </div>
+                                <div style="font-size: 0.6875rem; color: var(--text-muted);">${day}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
         // Keyboard shortcuts
