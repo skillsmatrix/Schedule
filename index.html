@@ -6793,14 +6793,25 @@
 
                 if (error) throw error;
 
+                // Refresh source and target cells locally
+                const sourceTech = TECHNICIANS.find(t => t.id === dragData.sourceTechId);
+                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
+                
+                if (sourceTech) {
+                    await refreshSingleTechDay(sourceTech, dragData.sourceDayIndex, sourceDateStr);
+                    updateCell(sourceTech, dragData.sourceDayIndex);
+                }
+                if (targetTech) {
+                    await refreshSingleTechDay(targetTech, targetDayIndex, dateStr);
+                    updateCell(targetTech, targetDayIndex);
+                }
+
                 // Broadcast cell refresh for both source and target cells
                 await broadcastCellRefresh([
                     { techId: dragData.sourceTechId, dateStr: sourceDateStr },
                     { techId: targetTechId, dateStr: dateStr }
                 ]);
 
-                await loadAllData();
-                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
                 showUpdateToast(`Job moved to ${targetTech?.name}`);
 
             } catch (err) {
@@ -6845,13 +6856,18 @@
 
                 if (error) throw error;
 
+                // Refresh target cell locally
+                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
+                if (targetTech) {
+                    await refreshSingleTechDay(targetTech, targetDayIndex, dateStr);
+                    updateCell(targetTech, targetDayIndex);
+                }
+
                 // Broadcast cell refresh for target cell
                 await broadcastCellRefresh([
                     { techId: targetTechId, dateStr: dateStr }
                 ]);
 
-                await loadAllData();
-                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
                 showUpdateToast(`Job duplicated to ${targetTech?.name}`);
 
             } catch (err) {
