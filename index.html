@@ -1363,12 +1363,11 @@
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
             </button>
-            <button class="btn-icon" id="copyPrevWeekBtn" onclick="showCopyPrevWeekModal()" title="Copy Previous Week" style="display: none; gap: 0.25rem;">
+            <button class="btn-icon" id="copyPrevWeekBtn" onclick="showCopyPrevWeekModal()" title="Copy Previous Week" style="display: none;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
-                <span style="font-size: 0.75rem;">Copy Week</span>
             </button>
             <button class="btn-icon" id="addTechBtn" onclick="showAddTechnicianModal()" title="Add Technician" style="display: none;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -5149,18 +5148,6 @@
                                                 cursor: pointer;
                                                 font-family: inherit;
                                             ">✏️ Edit</button>
-                                            <button onclick="showDuplicateJobModal('${tech.id}', ${dayIndex}, ${jobIndex})" style="
-                                                flex: 1;
-                                                padding: 0.375rem 0.5rem;
-                                                border: 1px solid ${job.isNight ? '#818cf8' : 'var(--border-color)'};
-                                                background: ${job.isNight ? 'rgba(129,140,248,0.1)' : 'var(--bg-secondary)'};
-                                                color: ${job.isNight ? '#c7d2fe' : 'var(--text-primary)'};
-                                                border-radius: 0.375rem;
-                                                font-size: 0.75rem;
-                                                font-weight: 500;
-                                                cursor: pointer;
-                                                font-family: inherit;
-                                            ">📋 Copy</button>
                                             <button onclick="deleteSingleJob('${tech.id}', ${dayIndex}, ${jobIndex})" style="
                                                 flex: 1;
                                                 padding: 0.375rem 0.5rem;
@@ -5172,7 +5159,7 @@
                                                 font-weight: 500;
                                                 cursor: pointer;
                                                 font-family: inherit;
-                                            ">🗑️</button>
+                                            ">🗑️ Delete</button>
                                         </div>
                                     ` : '';
                                     return `
@@ -6266,175 +6253,6 @@
                 alert('Error copying previous week: ' + err.message);
                 btn.disabled = false;
                 btn.textContent = 'Copy Week';
-            }
-        }
-
-        // Duplicate Job functionality
-        function showDuplicateJobModal(techId, dayIndex, jobIndex) {
-            const tech = TECHNICIANS.find(t => t.id === techId);
-            if (!tech) return;
-
-            const job = tech.schedule[dayIndex]?.jobs?.[jobIndex];
-            if (!job) return;
-
-            const overlay = document.createElement('div');
-            overlay.id = 'duplicateJobOverlay';
-            overlay.style.cssText = `
-                position: fixed;
-                inset: 0;
-                background: rgba(15, 23, 42, 0.6);
-                backdrop-filter: blur(4px);
-                z-index: 200;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            `;
-
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                background: var(--bg-secondary);
-                border-radius: 1rem;
-                padding: 2rem;
-                width: 90%;
-                max-width: 400px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            `;
-
-            // Build technician options
-            const techOptions = TECHNICIANS.map(t => 
-                `<option value="${t.id}" ${t.id === techId ? 'selected' : ''}>${t.name}</option>`
-            ).join('');
-
-            // Build day options
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const dayOptions = days.map((day, idx) => 
-                `<option value="${idx}" ${idx === dayIndex ? 'selected' : ''}>${day}</option>`
-            ).join('');
-
-            modal.innerHTML = `
-                <h2 style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: var(--text-primary);">Duplicate Job</h2>
-                <p style="margin: 0 0 1.5rem 0; font-size: 0.875rem; color: var(--text-muted);">
-                    Copy <strong>${job.q || 'this job'}</strong> to another day or technician
-                </p>
-                <div style="margin-bottom: 1rem;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Technician</label>
-                    <select id="dupTechSelect" style="
-                        width: 100%;
-                        padding: 0.625rem 0.75rem;
-                        border: 1px solid var(--border-color);
-                        border-radius: 0.5rem;
-                        font-size: 0.875rem;
-                        font-family: inherit;
-                        background: var(--bg-secondary);
-                        color: var(--text-primary);
-                        box-sizing: border-box;
-                    ">${techOptions}</select>
-                </div>
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Day</label>
-                    <select id="dupDaySelect" style="
-                        width: 100%;
-                        padding: 0.625rem 0.75rem;
-                        border: 1px solid var(--border-color);
-                        border-radius: 0.5rem;
-                        font-size: 0.875rem;
-                        font-family: inherit;
-                        background: var(--bg-secondary);
-                        color: var(--text-primary);
-                        box-sizing: border-box;
-                    ">${dayOptions}</select>
-                </div>
-                <div style="display: flex; gap: 0.75rem;">
-                    <button onclick="closeDuplicateJobModal()" style="
-                        flex: 1;
-                        padding: 0.625rem 1rem;
-                        border: 1px solid var(--border-color);
-                        background: var(--bg-secondary);
-                        color: var(--text-primary);
-                        border-radius: 0.5rem;
-                        font-size: 0.875rem;
-                        font-weight: 500;
-                        cursor: pointer;
-                        font-family: inherit;
-                    ">Cancel</button>
-                    <button onclick="executeDuplicateJob('${techId}', ${dayIndex}, ${jobIndex})" id="dupJobBtn" style="
-                        flex: 1;
-                        padding: 0.625rem 1rem;
-                        border: none;
-                        background: var(--brand-gradient);
-                        color: white;
-                        border-radius: 0.5rem;
-                        font-size: 0.875rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        font-family: inherit;
-                    ">Duplicate</button>
-                </div>
-            `;
-
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-
-            overlay.onclick = (e) => {
-                if (e.target === overlay) closeDuplicateJobModal();
-            };
-        }
-
-        function closeDuplicateJobModal() {
-            const overlay = document.getElementById('duplicateJobOverlay');
-            if (overlay) overlay.remove();
-        }
-
-        async function executeDuplicateJob(originalTechId, originalDayIndex, jobIndex) {
-            const targetTechId = document.getElementById('dupTechSelect').value;
-            const targetDayIndex = parseInt(document.getElementById('dupDaySelect').value);
-
-            const btn = document.getElementById('dupJobBtn');
-            btn.disabled = true;
-            btn.textContent = 'Duplicating...';
-
-            const tech = TECHNICIANS.find(t => t.id === originalTechId);
-            const job = tech?.schedule[originalDayIndex]?.jobs?.[jobIndex];
-            if (!job) {
-                alert('Job not found');
-                return;
-            }
-
-            // Calculate target date
-            const targetDate = new Date(currentWeekStart);
-            targetDate.setDate(targetDate.getDate() + targetDayIndex);
-            const dateStr = toLocalDateString(targetDate);
-
-            try {
-                const { error } = await supabaseClient
-                    .from('schedule_entries')
-                    .insert({
-                        technician_id: targetTechId,
-                        date: dateStr,
-                        q_number: job.q,
-                        client: job.client,
-                        location: job.location,
-                        task: job.task,
-                        partner: job.partner,
-                        is_night: job.isNight,
-                        job_status: job.jobStatus,
-                        notes: job.notes
-                    });
-
-                if (error) throw error;
-
-                closeDuplicateJobModal();
-                closePanel();
-                await loadAllData();
-                
-                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
-                showUpdateToast(`Job duplicated to ${targetTech?.name || 'technician'}`);
-
-            } catch (err) {
-                console.error('Error duplicating job:', err);
-                alert('Error duplicating job: ' + err.message);
-                btn.disabled = false;
-                btn.textContent = 'Duplicate';
             }
         }
 
