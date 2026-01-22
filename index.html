@@ -4879,14 +4879,20 @@
                 }
             };
 
+            // Draggable attributes for logged in users
+            const getDragAttrs = (jobIndex) => {
+                if (!currentUser) return '';
+                return `draggable="true" ondragstart="handleJobDragStart(event, '${tech.id}', ${dayIndex}, ${jobIndex})" ondragend="handleJobDragEnd(event)"`;
+            };
+
             // 1-2 jobs: Full display
             if (jobs.length <= 2) {
-                return jobs.map(job => {
+                return jobs.map((job, jobIndex) => {
                     const statusColor = getJobStatusColor(job.jobStatus);
                     const nightBg = job.isNight ? 'background: #312e81;' : '';
                     const borderColor = job.isNight ? '#6366f1' : statusColor;
                     return `
-                    <div class="job-entry full ${job.isNight ? 'night-job' : ''}" onclick="openPanel('${tech.id}', ${dayIndex})" style="${nightBg} border-left-color: ${borderColor};">
+                    <div class="job-entry full ${job.isNight ? 'night-job' : ''}" ${getDragAttrs(jobIndex)} onclick="openPanel('${tech.id}', ${dayIndex})" style="${nightBg} border-left-color: ${borderColor}; ${currentUser ? 'cursor: grab;' : ''}">
                         <div class="job-q" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.isNight ? '🌙 ' : ''}<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; margin-right: 4px;"></span>${job.q}</div>
                         <div class="job-location" style="${job.isNight ? 'color: #c7d2fe;' : ''}">${job.location}</div>
                         <div class="job-task" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.task}</div>
@@ -4897,12 +4903,12 @@
 
             // 3-4 jobs: Compact display
             if (jobs.length <= 4) {
-                return jobs.map(job => {
+                return jobs.map((job, jobIndex) => {
                     const statusColor = getJobStatusColor(job.jobStatus);
                     const nightBg = job.isNight ? 'background: #312e81;' : '';
                     const borderColor = job.isNight ? '#6366f1' : statusColor;
                     return `
-                    <div class="job-entry compact ${job.isNight ? 'night-job' : ''}" onclick="openPanel('${tech.id}', ${dayIndex})" style="${nightBg} border-left-color: ${borderColor};">
+                    <div class="job-entry compact ${job.isNight ? 'night-job' : ''}" ${getDragAttrs(jobIndex)} onclick="openPanel('${tech.id}', ${dayIndex})" style="${nightBg} border-left-color: ${borderColor}; ${currentUser ? 'cursor: grab;' : ''}">
                         <div class="job-line">
                             <span class="job-q" style="${job.isNight ? 'color: #a5b4fc;' : ''}">${job.isNight ? '🌙 ' : ''}<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${statusColor}; margin-right: 3px;"></span>${job.q}</span>
                             <span class="job-location" style="${job.isNight ? 'color: #c7d2fe;' : ''}">${job.location}</span>
@@ -4912,7 +4918,7 @@
                 `}).join('');
             }
 
-            // 5+ jobs: Chip display
+            // 5+ jobs: Chip display (not draggable individually - open panel to manage)
             const visibleJobs = jobs.slice(0, 5);
             const overflow = jobs.length - 5;
             return `
@@ -5052,7 +5058,7 @@
 
                     for (let i = 0; i < numDays; i++) {
                         const weekendClass = (i >= 5) ? ' weekend' : '';
-                        html += `<div class="day-cell${weekendClass}" onclick="openPanel('${tech.id}', ${i})">${renderDayCell(tech.schedule[i], tech, i)}</div>`;
+                        html += `<div class="day-cell${weekendClass}" data-tech-id="${tech.id}" data-day-index="${i}" onclick="openPanel('${tech.id}', ${i})" ondragover="handleJobDragOver(event)" ondragleave="handleJobDragLeave(event)" ondrop="handleJobDrop(event, '${tech.id}', ${i})">${renderDayCell(tech.schedule[i], tech, i)}</div>`;
                     }
 
                     html += '</div>';
@@ -6579,6 +6585,253 @@
                     }).join('')}
                 </div>
             `;
+        }
+
+        // Job Drag and Drop
+        let draggedJobData = null;
+
+        function handleJobDragStart(event, techId, dayIndex, jobIndex) {
+            event.stopPropagation();
+            const tech = TECHNICIANS.find(t => t.id === techId);
+            const job = tech?.schedule[dayIndex]?.jobs?.[jobIndex];
+            if (!job) return;
+
+            draggedJobData = {
+                sourceTechId: techId,
+                sourceDayIndex: dayIndex,
+                jobIndex: jobIndex,
+                job: job,
+                entryId: job.entryId
+            };
+
+            event.target.style.opacity = '0.5';
+            event.dataTransfer.effectAllowed = 'copyMove';
+            event.dataTransfer.setData('text/plain', JSON.stringify(draggedJobData));
+        }
+
+        function handleJobDragEnd(event) {
+            event.target.style.opacity = '1';
+            draggedJobData = null;
+            // Remove all drag-over highlights
+            document.querySelectorAll('.day-cell.drag-over').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+        }
+
+        function handleJobDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!draggedJobData) return;
+            
+            event.dataTransfer.dropEffect = 'copy';
+            event.currentTarget.classList.add('drag-over');
+        }
+
+        function handleJobDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleJobDrop(event, targetTechId, targetDayIndex) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove('drag-over');
+
+            if (!draggedJobData || !currentUser) return;
+
+            // Don't show popup if dropping on the same cell
+            if (draggedJobData.sourceTechId === targetTechId && draggedJobData.sourceDayIndex === targetDayIndex) {
+                return;
+            }
+
+            // Show move/duplicate popup
+            showMoveOrDuplicatePopup(draggedJobData, targetTechId, targetDayIndex);
+        }
+
+        function showMoveOrDuplicatePopup(dragData, targetTechId, targetDayIndex) {
+            const sourceTech = TECHNICIANS.find(t => t.id === dragData.sourceTechId);
+            const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+            const overlay = document.createElement('div');
+            overlay.id = 'moveOrDuplicateOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(4px);
+                z-index: 200;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--bg-secondary);
+                border-radius: 1rem;
+                padding: 2rem;
+                width: 90%;
+                max-width: 400px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            `;
+
+            modal.innerHTML = `
+                <h2 style="margin: 0 0 0.5rem 0; font-size: 1.25rem; color: var(--text-primary);">Move or Duplicate Job?</h2>
+                <p style="margin: 0 0 1.5rem 0; font-size: 0.875rem; color: var(--text-muted);">
+                    <strong style="color: var(--brand-primary);">${dragData.job.q}</strong><br>
+                    From: ${sourceTech?.name} (${days[dragData.sourceDayIndex]})<br>
+                    To: ${targetTech?.name} (${days[targetDayIndex]})
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <button onclick="executeMoveJob()" style="
+                        width: 100%;
+                        padding: 0.875rem 1rem;
+                        border: none;
+                        background: var(--brand-gradient);
+                        color: white;
+                        border-radius: 0.5rem;
+                        font-size: 0.875rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-family: inherit;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                    ">
+                        <span>📦</span> Move Job
+                        <span style="font-weight: 400; opacity: 0.8;">(removes from original)</span>
+                    </button>
+                    <button onclick="executeDuplicateJob()" style="
+                        width: 100%;
+                        padding: 0.875rem 1rem;
+                        border: 1px solid var(--border-color);
+                        background: var(--bg-secondary);
+                        color: var(--text-primary);
+                        border-radius: 0.5rem;
+                        font-size: 0.875rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-family: inherit;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                    ">
+                        <span>📋</span> Duplicate Job
+                        <span style="font-weight: 400; opacity: 0.8;">(keeps original)</span>
+                    </button>
+                    <button onclick="closeMoveOrDuplicatePopup()" style="
+                        width: 100%;
+                        padding: 0.625rem 1rem;
+                        border: none;
+                        background: transparent;
+                        color: var(--text-muted);
+                        border-radius: 0.5rem;
+                        font-size: 0.8125rem;
+                        cursor: pointer;
+                        font-family: inherit;
+                        margin-top: 0.5rem;
+                    ">Cancel</button>
+                </div>
+            `;
+
+            // Store target info for the button handlers
+            modal.dataset.targetTechId = targetTechId;
+            modal.dataset.targetDayIndex = targetDayIndex;
+            modal.dataset.dragData = JSON.stringify(dragData);
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            overlay.onclick = (e) => {
+                if (e.target === overlay) closeMoveOrDuplicatePopup();
+            };
+        }
+
+        function closeMoveOrDuplicatePopup() {
+            const overlay = document.getElementById('moveOrDuplicateOverlay');
+            if (overlay) overlay.remove();
+        }
+
+        async function executeMoveJob() {
+            const modal = document.querySelector('#moveOrDuplicateOverlay > div');
+            const targetTechId = modal.dataset.targetTechId;
+            const targetDayIndex = parseInt(modal.dataset.targetDayIndex);
+            const dragData = JSON.parse(modal.dataset.dragData);
+
+            closeMoveOrDuplicatePopup();
+
+            // Calculate target date
+            const targetDate = new Date(currentWeekStart);
+            targetDate.setDate(targetDate.getDate() + targetDayIndex);
+            const dateStr = toLocalDateString(targetDate);
+
+            suppressRealtimeEvents(5000);
+
+            try {
+                // Update the entry to new technician and date
+                const { error } = await supabaseClient
+                    .from('schedule_entries')
+                    .update({
+                        technician_id: targetTechId,
+                        date: dateStr
+                    })
+                    .eq('id', dragData.entryId);
+
+                if (error) throw error;
+
+                await loadAllData();
+                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
+                showUpdateToast(`Job moved to ${targetTech?.name}`);
+
+            } catch (err) {
+                console.error('Error moving job:', err);
+                alert('Error moving job: ' + err.message);
+            }
+        }
+
+        async function executeDuplicateJob() {
+            const modal = document.querySelector('#moveOrDuplicateOverlay > div');
+            const targetTechId = modal.dataset.targetTechId;
+            const targetDayIndex = parseInt(modal.dataset.targetDayIndex);
+            const dragData = JSON.parse(modal.dataset.dragData);
+
+            closeMoveOrDuplicatePopup();
+
+            // Calculate target date
+            const targetDate = new Date(currentWeekStart);
+            targetDate.setDate(targetDate.getDate() + targetDayIndex);
+            const dateStr = toLocalDateString(targetDate);
+
+            const job = dragData.job;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('schedule_entries')
+                    .insert({
+                        technician_id: targetTechId,
+                        date: dateStr,
+                        q_number: job.q,
+                        client: job.client,
+                        location: job.location,
+                        task: job.task,
+                        partner: job.partner,
+                        is_night: job.isNight,
+                        job_status: job.jobStatus,
+                        notes: job.notes
+                    });
+
+                if (error) throw error;
+
+                await loadAllData();
+                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
+                showUpdateToast(`Job duplicated to ${targetTech?.name}`);
+
+            } catch (err) {
+                console.error('Error duplicating job:', err);
+                alert('Error duplicating job: ' + err.message);
+            }
         }
 
         // Keyboard shortcuts
