@@ -7040,7 +7040,7 @@
                 
                 <div style="padding: 1.5rem;">
                     <!-- Summary Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
                             <div style="font-size: 2rem; font-weight: 700; color: var(--brand-primary);">${stats.totalJobs}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Total Jobs</div>
@@ -7061,14 +7061,25 @@
                             <div style="font-size: 2rem; font-weight: 700; color: #f97316;">${canceledStats.total}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Canceled</div>
                         </div>
-                        </div>
                         <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
                             <div style="font-size: 2rem; font-weight: 700; color: #6366f1;">${stats.nightJobs}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Night Shifts</div>
                         </div>
-                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center; cursor: help; position: relative;" title="${stats.daysWithWork} tech-days with work out of ${stats.totalPossibleDays} possible (${stats.techCount} technicians × ${stats.workdaysInWeek} workdays${stats.workdaysInWeek < 5 ? ' due to bank holiday' : ''}). Excludes Management & Admin.">
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center; cursor: help;" title="${stats.daysWithWork} tech-days with work out of ${stats.totalPossibleDays} possible (${stats.techCount} technicians × ${stats.workdaysInWeek} workdays${stats.workdaysInWeek < 5 ? ' due to bank holiday' : ''}). Excludes Management & Admin.">
                             <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">${stats.utilisation}%</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Utilisation <span style="font-size: 0.625rem; opacity: 0.7;">ⓘ</span></div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center; opacity: 0.3;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--text-muted);">—</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center; opacity: 0.3;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--text-muted);">—</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center; opacity: 0.3;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--text-muted);">—</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
                         </div>
                     </div>
 
