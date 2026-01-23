@@ -6996,14 +6996,168 @@
                 box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             `;
 
-            // Calculate stats
-            const stats = calculateStats();
-            
-            // Fetch canceled jobs from audit log for this week
-            const weekStart = new Date(currentWeekStart);
+            // Build workstream options
+            const wsOptions = WORKSTREAMS.map(ws => `<option value="${ws.name}">${ws.name}</option>`).join('');
+
+            // Default date range: current week
             const weekEnd = new Date(currentWeekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
+            const defaultFrom = toLocalDateString(currentWeekStart);
+            const defaultTo = toLocalDateString(weekEnd);
+
+            modal.innerHTML = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">📊 Analytics Dashboard</h2>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-muted);" id="statsDateRangeLabel">Loading...</p>
+                        </div>
+                        <button onclick="closeStatsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0.5rem;">&times;</button>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <select id="statsWorkstreamFilter" onchange="updateStatsDisplay()" style="
+                            padding: 0.5rem 0.75rem;
+                            border: 1px solid var(--border-color);
+                            border-radius: 0.5rem;
+                            font-size: 0.8125rem;
+                            font-family: inherit;
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                        ">
+                            <option value="all">All Workstreams</option>
+                            ${wsOptions}
+                        </select>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">From:</label>
+                            <input type="date" id="statsFromDate" value="${defaultFrom}" onchange="updateStatsDisplay()" style="
+                                padding: 0.5rem 0.75rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.5rem;
+                                font-size: 0.8125rem;
+                                font-family: inherit;
+                                background: var(--bg-secondary);
+                                color: var(--text-primary);
+                            ">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">To:</label>
+                            <input type="date" id="statsToDate" value="${defaultTo}" onchange="updateStatsDisplay()" style="
+                                padding: 0.5rem 0.75rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.5rem;
+                                font-size: 0.8125rem;
+                                font-family: inherit;
+                                background: var(--bg-secondary);
+                                color: var(--text-primary);
+                            ">
+                        </div>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <button onclick="setStatsPreset('week')" class="stats-preset-btn" style="
+                                padding: 0.375rem 0.625rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.375rem;
+                                font-size: 0.6875rem;
+                                font-family: inherit;
+                                background: var(--bg-tertiary);
+                                color: var(--text-secondary);
+                                cursor: pointer;
+                            ">This Week</button>
+                            <button onclick="setStatsPreset('month')" class="stats-preset-btn" style="
+                                padding: 0.375rem 0.625rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.375rem;
+                                font-size: 0.6875rem;
+                                font-family: inherit;
+                                background: var(--bg-tertiary);
+                                color: var(--text-secondary);
+                                cursor: pointer;
+                            ">This Month</button>
+                            <button onclick="setStatsPreset('year')" class="stats-preset-btn" style="
+                                padding: 0.375rem 0.625rem;
+                                border: 1px solid var(--border-color);
+                                border-radius: 0.375rem;
+                                font-size: 0.6875rem;
+                                font-family: inherit;
+                                background: var(--bg-tertiary);
+                                color: var(--text-secondary);
+                                cursor: pointer;
+                            ">This Year</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="statsContent" style="padding: 1.5rem;">
+                    <div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading...</div>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            setupModalClose(overlay, closeStatsModal);
             
+            // Initial load
+            await updateStatsDisplay();
+        }
+
+        function setStatsPreset(preset) {
+            const today = new Date();
+            let fromDate, toDate;
+            
+            if (preset === 'week') {
+                const day = today.getDay();
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+                toDate = new Date(fromDate);
+                toDate.setDate(fromDate.getDate() + 6);
+            } else if (preset === 'month') {
+                fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            } else if (preset === 'year') {
+                fromDate = new Date(today.getFullYear(), 0, 1);
+                toDate = new Date(today.getFullYear(), 11, 31);
+            }
+            
+            document.getElementById('statsFromDate').value = toLocalDateString(fromDate);
+            document.getElementById('statsToDate').value = toLocalDateString(toDate);
+            updateStatsDisplay();
+        }
+
+        async function updateStatsDisplay() {
+            const filter = document.getElementById('statsWorkstreamFilter')?.value || 'all';
+            const fromDateStr = document.getElementById('statsFromDate')?.value;
+            const toDateStr = document.getElementById('statsToDate')?.value;
+            const content = document.getElementById('statsContent');
+            
+            if (!fromDateStr || !toDateStr) return;
+            
+            const fromDate = new Date(fromDateStr);
+            const toDate = new Date(toDateStr);
+            
+            // Update date range label
+            const fromFormatted = fromDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            const toFormatted = toDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            document.getElementById('statsDateRangeLabel').textContent = `${fromFormatted} — ${toFormatted}`;
+            
+            // Fetch schedule entries for the date range
+            let entries = [];
+            try {
+                const { data, error } = await supabaseClient
+                    .from('schedule_entries')
+                    .select('*')
+                    .gte('date', fromDateStr)
+                    .lte('date', toDateStr);
+                
+                if (!error && data) {
+                    entries = data;
+                }
+            } catch (err) {
+                console.error('Error fetching entries:', err);
+            }
+            
+            // Calculate stats with filter and date range
+            const stats = calculateStatsFromEntries(entries, filter, fromDate, toDate);
+            
+            // Fetch canceled jobs from audit log
             let canceledStats = { total: 0, byClient: {}, byWorkstream: {} };
             
             try {
@@ -7011,16 +7165,19 @@
                     .from('audit_log')
                     .select('*')
                     .eq('was_canceled', true)
-                    .gte('date', toLocalDateString(weekStart))
-                    .lte('date', toLocalDateString(weekEnd));
+                    .gte('date', fromDateStr)
+                    .lte('date', toDateStr);
                 
                 if (canceledJobs) {
-                    canceledStats.total = canceledJobs.length;
                     canceledJobs.forEach(job => {
-                        const client = job.job_details?.client || 'Unknown';
                         const tech = TECHNICIANS.find(t => t.id === job.technician_id);
                         const workstream = tech?.workstream || 'Unknown';
                         
+                        // Apply workstream filter to canceled jobs too
+                        if (filter !== 'all' && workstream !== filter) return;
+                        
+                        canceledStats.total++;
+                        const client = job.job_details?.client || 'Unknown';
                         canceledStats.byClient[client] = (canceledStats.byClient[client] || 0) + 1;
                         canceledStats.byWorkstream[workstream] = (canceledStats.byWorkstream[workstream] || 0) + 1;
                     });
@@ -7029,17 +7186,8 @@
                 console.error('Error fetching canceled jobs:', err);
             }
 
-            modal.innerHTML = `
-                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">📊 Analytics Dashboard</h2>
-                        <p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-muted);">Week ${getWeekNumber(currentWeekStart)} · ${formatDate(currentWeekStart).month} ${currentWeekStart.getFullYear()}</p>
-                    </div>
-                    <button onclick="closeStatsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0.5rem;">&times;</button>
-                </div>
-                
-                <div style="padding: 1.5rem;">
-                    <!-- Summary Cards -->
+            content.innerHTML = `
+                <!-- Summary Cards -->
                     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
                             <div style="font-size: 2rem; font-weight: 700; color: var(--brand-primary);">${stats.totalJobs}</div>
@@ -7160,13 +7308,7 @@
                         </div>
                     </div>
                     ` : ''}
-                </div>
             `;
-
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-
-            setupModalClose(overlay, closeStatsModal);
         }
 
         function closeStatsModal() {
@@ -7174,7 +7316,158 @@
             if (overlay) overlay.remove();
         }
 
-        function calculateStats() {
+        function calculateStatsFromEntries(entries, workstreamFilter, fromDate, toDate) {
+            let totalJobs = 0;
+            let liveJobs = 0;
+            let pendingJobs = 0;
+            let inactiveJobs = 0;
+            let nightJobs = 0;
+            let leaveCount = 0;
+            let sicknessCount = 0;
+            let bankHolidayCount = 0;
+            let trainingCount = 0;
+
+            const byWorkstream = {};
+            const byClient = {};
+            const byTechnician = {};
+            const byDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const peopleOnLeave = new Set();
+            const peopleOnSickness = new Set();
+
+            const excludedWorkstream = 'Management & Admin';
+            const techDaysWithWork = new Set();
+            const bankHolidayDates = new Set();
+
+            // Initialize technician data
+            TECHNICIANS.forEach(tech => {
+                if (workstreamFilter !== 'all' && tech.workstream !== workstreamFilter) return;
+                byTechnician[tech.name] = { jobs: 0, workstream: tech.workstream };
+                if (!byWorkstream[tech.workstream]) {
+                    byWorkstream[tech.workstream] = 0;
+                }
+            });
+
+            // Process entries
+            entries.forEach(entry => {
+                const tech = TECHNICIANS.find(t => t.id === entry.technician_id);
+                if (!tech) return;
+                
+                // Apply workstream filter
+                if (workstreamFilter !== 'all' && tech.workstream !== workstreamFilter) return;
+
+                const entryDate = new Date(entry.date);
+                const dayName = dayNames[entryDate.getDay()];
+                const techDayKey = `${entry.technician_id}-${entry.date}`;
+                const isExcludedWorkstream = tech.workstream === excludedWorkstream;
+
+                // If it's a job
+                if (entry.entry_type === 'job' || entry.q_number || entry.client) {
+                    totalJobs++;
+                    
+                    if (!isExcludedWorkstream) {
+                        techDaysWithWork.add(techDayKey);
+                    }
+                    
+                    if (byTechnician[tech.name]) {
+                        byTechnician[tech.name].jobs++;
+                    }
+                    
+                    if (byWorkstream[tech.workstream] !== undefined) {
+                        byWorkstream[tech.workstream]++;
+                    }
+
+                    if (byDay[dayName] !== undefined) {
+                        byDay[dayName]++;
+                    }
+
+                    if (entry.client) {
+                        byClient[entry.client] = (byClient[entry.client] || 0) + 1;
+                    }
+
+                    const status = entry.job_status || 'live';
+                    if (status === 'live') liveJobs++;
+                    else if (status === 'pending') pendingJobs++;
+                    else if (status === 'inactive') inactiveJobs++;
+
+                    if (entry.is_night) nightJobs++;
+                }
+                // Status entry
+                else if (entry.entry_type === 'status') {
+                    const status = entry.status_type || entry.status;
+                    
+                    if (status === 'leave') {
+                        leaveCount++;
+                        peopleOnLeave.add(tech.name);
+                    } else if (status === 'sickness') {
+                        sicknessCount++;
+                        peopleOnSickness.add(tech.name);
+                    } else if (status === 'training') {
+                        trainingCount++;
+                        if (!isExcludedWorkstream) {
+                            techDaysWithWork.add(techDayKey);
+                        }
+                    } else if (status === 'bank_holiday') {
+                        bankHolidayCount++;
+                        bankHolidayDates.add(entry.date);
+                    } else if (['office', 'wfh', 'travel'].includes(status)) {
+                        if (!isExcludedWorkstream) {
+                            techDaysWithWork.add(techDayKey);
+                        }
+                    }
+                }
+            });
+
+            // Calculate utilisation
+            const utilisationTechCount = TECHNICIANS.filter(t => {
+                if (t.workstream === excludedWorkstream) return false;
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                return true;
+            }).length;
+            
+            // Calculate workdays in range (exclude weekends, subtract bank holidays)
+            let totalWorkdays = 0;
+            const currentDate = new Date(fromDate);
+            while (currentDate <= toDate) {
+                const dayOfWeek = currentDate.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not weekend
+                    totalWorkdays++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            totalWorkdays -= bankHolidayDates.size;
+
+            const daysWithWork = techDaysWithWork.size;
+            const totalPossibleDays = utilisationTechCount * totalWorkdays;
+            const utilisation = totalPossibleDays > 0 
+                ? Math.round((daysWithWork / totalPossibleDays) * 100) 
+                : 0;
+
+            return {
+                totalJobs,
+                liveJobs,
+                pendingJobs,
+                inactiveJobs,
+                nightJobs,
+                utilisation,
+                daysWithWork,
+                totalPossibleDays,
+                techCount: utilisationTechCount,
+                workdaysInWeek: totalWorkdays,
+                byWorkstream,
+                byClient,
+                byTechnician,
+                byDay,
+                leaveCount,
+                sicknessCount,
+                bankHolidayCount,
+                trainingCount,
+                peopleOnLeave: Array.from(peopleOnLeave),
+                peopleOnSickness: Array.from(peopleOnSickness)
+            };
+        }
+
+        function calculateStats(workstreamFilter = 'all') {
             let totalJobs = 0;
             let liveJobs = 0;
             let pendingJobs = 0;
@@ -7224,6 +7517,9 @@
                 if (entryDate >= weekStart && entryDate <= weekEnd) {
                     const tech = TECHNICIANS.find(t => t.id === entry.technician_id);
                     if (!tech) return;
+                    
+                    // Apply workstream filter
+                    if (workstreamFilter !== 'all' && tech.workstream !== workstreamFilter) return;
 
                     const dayName = dayNames[entryDate.getDay()];
                     const techDayKey = `${entry.technician_id}-${entry.date}`;
@@ -7300,8 +7596,12 @@
                 }
             });
 
-            // Count technicians excluding Management & Admin for utilisation
-            const utilisationTechCount = TECHNICIANS.filter(t => t.workstream !== excludedWorkstream).length;
+            // Count technicians excluding Management & Admin for utilisation (also apply filter)
+            const utilisationTechCount = TECHNICIANS.filter(t => {
+                if (t.workstream === excludedWorkstream) return false;
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                return true;
+            }).length;
             
             // Calculate workdays (5 minus bank holidays that affect everyone)
             // Count unique dates that have bank holidays
