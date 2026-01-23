@@ -1309,10 +1309,53 @@
                 <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite;"></span>
                 <span id="onlineCount">1 online</span>
             </div>
-            <div class="week-navigator">
-                <button onclick="changeWeek(-1)" aria-label="Previous week">‹</button>
+            <div class="view-toggle" style="
+                display: flex;
+                background: rgba(255,255,255,0.15);
+                border-radius: 0.5rem;
+                padding: 0.25rem;
+            ">
+                <button onclick="setViewMode('week')" id="viewWeek" class="view-btn active" style="
+                    padding: 0.375rem 0.75rem;
+                    border: none;
+                    background: rgba(255,255,255,0.9);
+                    color: var(--brand-primary);
+                    border-radius: 0.375rem;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.15s ease;
+                ">Week</button>
+                <button onclick="setViewMode('month')" id="viewMonth" class="view-btn" style="
+                    padding: 0.375rem 0.75rem;
+                    border: none;
+                    background: transparent;
+                    color: white;
+                    border-radius: 0.375rem;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.15s ease;
+                ">Month</button>
+                <button onclick="setViewMode('year')" id="viewYear" class="view-btn" style="
+                    padding: 0.375rem 0.75rem;
+                    border: none;
+                    background: transparent;
+                    color: white;
+                    border-radius: 0.375rem;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.15s ease;
+                ">Year</button>
+            </div>
+            <div class="week-navigator" id="periodNavigator">
+                <button onclick="changePeriod(-1)" aria-label="Previous period">‹</button>
                 <div class="week-display" id="weekDisplay">Week 49 · December 2025</div>
-                <button onclick="changeWeek(1)" aria-label="Next week">›</button>
+                <button onclick="changePeriod(1)" aria-label="Next period">›</button>
             </div>
             <button class="btn-today" onclick="goToToday()">Today</button>
             <button class="btn-today" id="authBtn" style="background: rgba(255,255,255,0.2); color: white;">🔐 Sign In</button>
@@ -5117,8 +5160,86 @@
         currentWeekStart.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
         currentWeekStart.setHours(0, 0, 0, 0);
         
+        let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        let currentYear = today.getFullYear();
+        let viewMode = 'week'; // 'week', 'month', 'year'
+        
         let showWeekends = true;
         let darkMode = false;
+
+        // View mode switching
+        function setViewMode(mode) {
+            viewMode = mode;
+            
+            // Update button styles
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.style.background = 'transparent';
+                btn.style.color = 'white';
+                btn.style.fontWeight = '500';
+            });
+            const activeBtn = document.getElementById('view' + mode.charAt(0).toUpperCase() + mode.slice(1));
+            if (activeBtn) {
+                activeBtn.style.background = 'rgba(255,255,255,0.9)';
+                activeBtn.style.color = 'var(--brand-primary)';
+                activeBtn.style.fontWeight = '600';
+            }
+            
+            updatePeriodDisplay();
+            renderSchedule();
+        }
+
+        function changePeriod(delta) {
+            if (viewMode === 'week') {
+                currentWeekStart.setDate(currentWeekStart.getDate() + (delta * 7));
+                loadScheduleData();
+            } else if (viewMode === 'month') {
+                currentMonth.setMonth(currentMonth.getMonth() + delta);
+                loadScheduleDataForPeriod();
+            } else if (viewMode === 'year') {
+                currentYear += delta;
+                loadScheduleDataForPeriod();
+            }
+            updatePeriodDisplay();
+            renderSchedule();
+        }
+
+        function updatePeriodDisplay() {
+            const display = document.getElementById('weekDisplay');
+            if (viewMode === 'week') {
+                display.textContent = `Week ${getWeekNumber(currentWeekStart)} · ${formatDate(currentWeekStart).month} ${currentWeekStart.getFullYear()}`;
+            } else if (viewMode === 'month') {
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                display.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+            } else if (viewMode === 'year') {
+                display.textContent = `Year ${currentYear}`;
+            }
+        }
+
+        async function loadScheduleDataForPeriod() {
+            if (!supabaseClient) return;
+            
+            let startDate, endDate;
+            
+            if (viewMode === 'month') {
+                startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            } else if (viewMode === 'year') {
+                startDate = new Date(currentYear, 0, 1);
+                endDate = new Date(currentYear, 11, 31);
+            } else {
+                return loadScheduleData();
+            }
+            
+            const { data, error } = await supabaseClient
+                .from('schedule_entries')
+                .select('*')
+                .gte('date', toLocalDateString(startDate))
+                .lte('date', toLocalDateString(endDate));
+            
+            if (!error && data) {
+                SCHEDULE_ENTRIES = data;
+            }
+        }
 
         // Dark mode toggle
         function toggleDarkMode() {
@@ -5176,8 +5297,7 @@
 
         // Navigation
         function changeWeek(delta) {
-            currentWeekStart.setDate(currentWeekStart.getDate() + (delta * 7));
-            loadAllData();
+            changePeriod(delta);
         }
 
         function goToToday() {
@@ -5185,7 +5305,17 @@
             const day = today.getDay();
             currentWeekStart = new Date(today);
             currentWeekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
-            loadAllData();
+            currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            currentYear = today.getFullYear();
+            
+            if (viewMode === 'week') {
+                loadAllData();
+            } else {
+                loadScheduleDataForPeriod().then(() => {
+                    updatePeriodDisplay();
+                    renderSchedule();
+                });
+            }
         }
 
         function toggleWeekends() {
@@ -5280,14 +5410,27 @@
 
         // Main render
         function renderSchedule() {
+            if (viewMode === 'month') {
+                renderMonthView();
+                return;
+            }
+            if (viewMode === 'year') {
+                renderYearView();
+                return;
+            }
+            
+            // Week view (default)
+            renderWeekView();
+        }
+
+        function renderWeekView() {
             const grid = document.getElementById('scheduleGrid');
             const workstreamFilter = document.getElementById('workstreamFilter').value;
             const clientFilter = document.getElementById('clientFilter').value;
             const search = document.getElementById('searchInput').value.toLowerCase();
 
             // Update week display
-            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            document.getElementById('weekDisplay').textContent = `Week ${getWeekNumber(currentWeekStart)} · ${months[currentWeekStart.getMonth()]} ${currentWeekStart.getFullYear()}`;
+            updatePeriodDisplay();
 
             // Grid columns
             const numDays = showWeekends ? 7 : 5;
@@ -5441,6 +5584,216 @@
                     </div>
                 `;
             }
+        }
+
+        function renderMonthView() {
+            const grid = document.getElementById('scheduleGrid');
+            const workstreamFilter = document.getElementById('workstreamFilter').value;
+            
+            updatePeriodDisplay();
+            
+            // Get weeks in month
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            
+            // Get all weeks that touch this month
+            const weeks = [];
+            let weekStart = new Date(firstDay);
+            const dayOfWeek = weekStart.getDay();
+            weekStart.setDate(weekStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            
+            while (weekStart <= lastDay) {
+                weeks.push(new Date(weekStart));
+                weekStart.setDate(weekStart.getDate() + 7);
+            }
+            
+            // Calculate summary stats for each technician
+            const techStats = {};
+            TECHNICIANS.forEach(tech => {
+                techStats[tech.id] = {
+                    totalJobs: 0,
+                    leaveDays: 0,
+                    sickDays: 0,
+                    trainingDays: 0,
+                    workDays: 0
+                };
+            });
+            
+            SCHEDULE_ENTRIES.forEach(entry => {
+                const entryDate = new Date(entry.date);
+                if (entryDate.getMonth() === month && entryDate.getFullYear() === year) {
+                    const stats = techStats[entry.technician_id];
+                    if (stats) {
+                        if (entry.entry_type === 'job') {
+                            stats.totalJobs++;
+                            stats.workDays++;
+                        } else if (entry.entry_type === 'status') {
+                            if (entry.status_type === 'leave') stats.leaveDays++;
+                            else if (entry.status_type === 'sickness') stats.sickDays++;
+                            else if (entry.status_type === 'training') stats.trainingDays++;
+                        }
+                    }
+                }
+            });
+            
+            // Filter technicians
+            let techs = TECHNICIANS.filter(t => {
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                return true;
+            });
+            
+            // Group by workstream
+            const workstreams = WORKSTREAMS.map(ws => ws.name);
+            const grouped = {};
+            workstreams.forEach(ws => grouped[ws] = []);
+            techs.forEach(t => {
+                if (grouped[t.workstream]) grouped[t.workstream].push(t);
+            });
+            
+            // Build HTML
+            grid.className = 'schedule-grid';
+            grid.style.gridTemplateColumns = '200px repeat(4, 1fr)';
+            
+            let html = '<div class="grid-header">';
+            html += '<div class="grid-header-cell">Technician</div>';
+            html += '<div class="grid-header-cell"><div class="day-name">Jobs</div></div>';
+            html += '<div class="grid-header-cell"><div class="day-name">🌴 Leave</div></div>';
+            html += '<div class="grid-header-cell"><div class="day-name">🏥 Sick</div></div>';
+            html += '<div class="grid-header-cell"><div class="day-name">📚 Training</div></div>';
+            html += '</div>';
+            
+            workstreams.forEach(ws => {
+                const group = grouped[ws];
+                if (group.length === 0) return;
+                
+                html += `<div class="workstream-header">${ws} (${group.length})</div>`;
+                
+                group.forEach(tech => {
+                    const stats = techStats[tech.id] || { totalJobs: 0, leaveDays: 0, sickDays: 0, trainingDays: 0 };
+                    
+                    html += `
+                        <div class="person-cell" onclick="openPanel('${tech.id}')">
+                            <div class="person-name">${tech.name}</div>
+                            <div class="person-role">${tech.role}</div>
+                        </div>
+                        <div class="day-cell" style="display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.25rem; font-weight: 700; color: var(--brand-primary);">${stats.totalJobs}</span>
+                        </div>
+                        <div class="day-cell" style="display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.25rem; font-weight: 700; color: #22c55e;">${stats.leaveDays}</span>
+                        </div>
+                        <div class="day-cell" style="display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.25rem; font-weight: 700; color: #ef4444;">${stats.sickDays}</span>
+                        </div>
+                        <div class="day-cell" style="display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.25rem; font-weight: 700; color: #3b82f6;">${stats.trainingDays}</span>
+                        </div>
+                    `;
+                });
+            });
+            
+            grid.innerHTML = html;
+        }
+
+        function renderYearView() {
+            const grid = document.getElementById('scheduleGrid');
+            const workstreamFilter = document.getElementById('workstreamFilter').value;
+            
+            updatePeriodDisplay();
+            
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Calculate stats per technician per month
+            const techMonthStats = {};
+            TECHNICIANS.forEach(tech => {
+                techMonthStats[tech.id] = {};
+                months.forEach((m, i) => {
+                    techMonthStats[tech.id][i] = { jobs: 0, leave: 0, sick: 0 };
+                });
+            });
+            
+            SCHEDULE_ENTRIES.forEach(entry => {
+                const entryDate = new Date(entry.date);
+                if (entryDate.getFullYear() === currentYear) {
+                    const month = entryDate.getMonth();
+                    const stats = techMonthStats[entry.technician_id]?.[month];
+                    if (stats) {
+                        if (entry.entry_type === 'job') {
+                            stats.jobs++;
+                        } else if (entry.entry_type === 'status') {
+                            if (entry.status_type === 'leave') stats.leave++;
+                            else if (entry.status_type === 'sickness') stats.sick++;
+                        }
+                    }
+                }
+            });
+            
+            // Filter technicians
+            let techs = TECHNICIANS.filter(t => {
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                return true;
+            });
+            
+            // Group by workstream
+            const workstreams = WORKSTREAMS.map(ws => ws.name);
+            const grouped = {};
+            workstreams.forEach(ws => grouped[ws] = []);
+            techs.forEach(t => {
+                if (grouped[t.workstream]) grouped[t.workstream].push(t);
+            });
+            
+            // Build HTML
+            grid.className = 'schedule-grid';
+            grid.style.gridTemplateColumns = '180px repeat(12, 1fr)';
+            
+            let html = '<div class="grid-header">';
+            html += '<div class="grid-header-cell">Technician</div>';
+            months.forEach((m, i) => {
+                const isCurrentMonth = (new Date().getMonth() === i && new Date().getFullYear() === currentYear);
+                html += `<div class="grid-header-cell${isCurrentMonth ? ' today' : ''}"><div class="day-name">${m}</div></div>`;
+            });
+            html += '</div>';
+            
+            workstreams.forEach(ws => {
+                const group = grouped[ws];
+                if (group.length === 0) return;
+                
+                html += `<div class="workstream-header">${ws} (${group.length})</div>`;
+                
+                group.forEach(tech => {
+                    html += `
+                        <div class="person-cell" onclick="openPanel('${tech.id}')">
+                            <div class="person-name">${tech.name}</div>
+                        </div>
+                    `;
+                    
+                    months.forEach((m, i) => {
+                        const stats = techMonthStats[tech.id]?.[i] || { jobs: 0, leave: 0, sick: 0 };
+                        const total = stats.jobs + stats.leave + stats.sick;
+                        
+                        let content = '';
+                        if (stats.jobs > 0) {
+                            content += `<span style="color: var(--brand-primary); font-weight: 600; font-size: 0.75rem;">${stats.jobs}j</span>`;
+                        }
+                        if (stats.leave > 0) {
+                            content += `<span style="color: #22c55e; font-size: 0.6875rem; margin-left: 0.25rem;">${stats.leave}L</span>`;
+                        }
+                        if (stats.sick > 0) {
+                            content += `<span style="color: #ef4444; font-size: 0.6875rem; margin-left: 0.25rem;">${stats.sick}S</span>`;
+                        }
+                        
+                        html += `
+                            <div class="day-cell" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.125rem; padding: 0.25rem;">
+                                ${content || '<span style="color: var(--text-muted); font-size: 0.625rem;">—</span>'}
+                            </div>
+                        `;
+                    });
+                });
+            });
+            
+            grid.innerHTML = html;
         }
 
         // Panel
@@ -6996,13 +7349,77 @@
                 box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             `;
 
-            // Calculate stats
-            const stats = calculateStats();
+            // Build workstream options
+            const wsOptions = WORKSTREAMS.map(ws => `<option value="${ws.name}">${ws.name}</option>`).join('');
+
+            // Build period display based on view mode
+            let periodText = `Week ${getWeekNumber(currentWeekStart)} · ${formatDate(currentWeekStart).month} ${currentWeekStart.getFullYear()}`;
+            if (viewMode === 'month') {
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                periodText = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+            } else if (viewMode === 'year') {
+                periodText = `Year ${currentYear}`;
+            }
+
+            modal.innerHTML = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">📊 Analytics Dashboard</h2>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-muted);">${periodText}</p>
+                        </div>
+                        <button onclick="closeStatsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0.5rem;">&times;</button>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Filter:</label>
+                        <select id="statsWorkstreamFilter" onchange="updateStatsDisplay()" style="
+                            padding: 0.5rem 0.75rem;
+                            border: 1px solid var(--border-color);
+                            border-radius: 0.5rem;
+                            font-size: 0.8125rem;
+                            font-family: inherit;
+                            background: var(--bg-secondary);
+                            color: var(--text-primary);
+                        ">
+                            <option value="all">All Workstreams</option>
+                            ${wsOptions}
+                        </select>
+                    </div>
+                </div>
+                <div id="statsContent" style="padding: 1.5rem;">
+                    <div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading...</div>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            setupModalClose(overlay, closeStatsModal);
             
-            // Fetch canceled jobs from audit log for this week
-            const weekStart = new Date(currentWeekStart);
-            const weekEnd = new Date(currentWeekStart);
-            weekEnd.setDate(weekEnd.getDate() + 6);
+            // Initial load
+            await updateStatsDisplay();
+        }
+
+        async function updateStatsDisplay() {
+            const filter = document.getElementById('statsWorkstreamFilter')?.value || 'all';
+            const content = document.getElementById('statsContent');
+            
+            // Calculate stats with filter
+            const stats = calculateStats(filter);
+            
+            // Fetch canceled jobs from audit log
+            let startDate, endDate;
+            if (viewMode === 'month') {
+                startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            } else if (viewMode === 'year') {
+                startDate = new Date(currentYear, 0, 1);
+                endDate = new Date(currentYear, 11, 31);
+            } else {
+                startDate = new Date(currentWeekStart);
+                endDate = new Date(currentWeekStart);
+                endDate.setDate(endDate.getDate() + 6);
+            }
             
             let canceledStats = { total: 0, byClient: {}, byWorkstream: {} };
             
@@ -7011,16 +7428,19 @@
                     .from('audit_log')
                     .select('*')
                     .eq('was_canceled', true)
-                    .gte('date', toLocalDateString(weekStart))
-                    .lte('date', toLocalDateString(weekEnd));
+                    .gte('date', toLocalDateString(startDate))
+                    .lte('date', toLocalDateString(endDate));
                 
                 if (canceledJobs) {
-                    canceledStats.total = canceledJobs.length;
                     canceledJobs.forEach(job => {
-                        const client = job.job_details?.client || 'Unknown';
                         const tech = TECHNICIANS.find(t => t.id === job.technician_id);
                         const workstream = tech?.workstream || 'Unknown';
                         
+                        // Apply workstream filter to canceled jobs too
+                        if (filter !== 'all' && workstream !== filter) return;
+                        
+                        canceledStats.total++;
+                        const client = job.job_details?.client || 'Unknown';
                         canceledStats.byClient[client] = (canceledStats.byClient[client] || 0) + 1;
                         canceledStats.byWorkstream[workstream] = (canceledStats.byWorkstream[workstream] || 0) + 1;
                     });
@@ -7029,17 +7449,8 @@
                 console.error('Error fetching canceled jobs:', err);
             }
 
-            modal.innerHTML = `
-                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">📊 Analytics Dashboard</h2>
-                        <p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-muted);">Week ${getWeekNumber(currentWeekStart)} · ${formatDate(currentWeekStart).month} ${currentWeekStart.getFullYear()}</p>
-                    </div>
-                    <button onclick="closeStatsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0.5rem;">&times;</button>
-                </div>
-                
-                <div style="padding: 1.5rem;">
-                    <!-- Summary Cards -->
+            content.innerHTML = `
+                <!-- Summary Cards -->
                     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <div style="background: var(--bg-tertiary); border-radius: 0.75rem; padding: 1rem; text-align: center;">
                             <div style="font-size: 2rem; font-weight: 700; color: var(--brand-primary);">${stats.totalJobs}</div>
@@ -7160,13 +7571,7 @@
                         </div>
                     </div>
                     ` : ''}
-                </div>
             `;
-
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-
-            setupModalClose(overlay, closeStatsModal);
         }
 
         function closeStatsModal() {
@@ -7174,7 +7579,7 @@
             if (overlay) overlay.remove();
         }
 
-        function calculateStats() {
+        function calculateStats(workstreamFilter = 'all') {
             let totalJobs = 0;
             let liveJobs = 0;
             let pendingJobs = 0;
@@ -7224,6 +7629,9 @@
                 if (entryDate >= weekStart && entryDate <= weekEnd) {
                     const tech = TECHNICIANS.find(t => t.id === entry.technician_id);
                     if (!tech) return;
+                    
+                    // Apply workstream filter
+                    if (workstreamFilter !== 'all' && tech.workstream !== workstreamFilter) return;
 
                     const dayName = dayNames[entryDate.getDay()];
                     const techDayKey = `${entry.technician_id}-${entry.date}`;
@@ -7300,8 +7708,12 @@
                 }
             });
 
-            // Count technicians excluding Management & Admin for utilisation
-            const utilisationTechCount = TECHNICIANS.filter(t => t.workstream !== excludedWorkstream).length;
+            // Count technicians excluding Management & Admin for utilisation (also apply filter)
+            const utilisationTechCount = TECHNICIANS.filter(t => {
+                if (t.workstream === excludedWorkstream) return false;
+                if (workstreamFilter !== 'all' && t.workstream !== workstreamFilter) return false;
+                return true;
+            }).length;
             
             // Calculate workdays (5 minus bank holidays that affect everyone)
             // Count unique dates that have bank holidays
