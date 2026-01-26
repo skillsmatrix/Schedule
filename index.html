@@ -3442,13 +3442,16 @@
                 if (partnerError) {
                     console.error('Error saving partner entries:', partnerError);
                 } else {
-                    // Update each partner's cell locally
-                    for (const partnerEntry of partnerEntries) {
-                        const partnerTech = TECHNICIANS.find(t => t.id === partnerEntry.technician_id);
-                        if (partnerTech && dayIndex >= 0) {
-                            await reloadTechnicianDay(partnerTech, dayIndex, dateStr);
-                            updateCell(partnerTech, dayIndex);
-                        }
+                    // Batch refresh all partner cells
+                    const partnerTechs = partnerEntries
+                        .map(entry => TECHNICIANS.find(t => t.id === entry.technician_id))
+                        .filter(Boolean);
+                    
+                    if (partnerTechs.length > 0 && dayIndex >= 0) {
+                        await Promise.all(partnerTechs.map(partnerTech => 
+                            reloadTechnicianDay(partnerTech, dayIndex, dateStr)
+                        ));
+                        partnerTechs.forEach(partnerTech => updateCell(partnerTech, dayIndex));
                     }
                 }
             }
@@ -3756,46 +3759,50 @@
                 // If job had partners, delete their linked entries too
                 if (job.partner) {
                     const partnerNames = job.partner.split(',').map(p => p.trim());
+                    const partnerTechs = partnerNames
+                        .map(name => TECHNICIANS.find(t => t.name === name))
+                        .filter(Boolean);
                     
-                    for (const partnerName of partnerNames) {
-                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
-                        if (partnerTech) {
-                            // Log to audit table for each partner
-                            await supabaseClient
-                                .from('audit_log')
-                                .insert([{
-                                    action: 'job_deleted',
-                                    technician_id: partnerTech.id,
-                                    technician_name: partnerTech.name,
-                                    date: dateStr,
-                                    job_details: {
-                                        q_number: job.q,
-                                        client: job.client,
-                                        location: job.location,
-                                        task: job.task,
-                                        partner: tech.name,
-                                        is_night: job.isNight,
-                                        job_status: job.jobStatus
-                                    },
-                                    was_canceled: wasCanceled,
-                                    notes: notes + ` (deleted via ${tech.name})`,
-                                    performed_by: currentUser?.email
-                                }]);
+                    if (partnerTechs.length > 0) {
+                        // Batch insert all audit logs in one call
+                        const auditEntries = partnerTechs.map(partnerTech => ({
+                            action: 'job_deleted',
+                            technician_id: partnerTech.id,
+                            technician_name: partnerTech.name,
+                            date: dateStr,
+                            job_details: {
+                                q_number: job.q,
+                                client: job.client,
+                                location: job.location,
+                                task: job.task,
+                                partner: tech.name,
+                                is_night: job.isNight,
+                                job_status: job.jobStatus
+                            },
+                            was_canceled: wasCanceled,
+                            notes: notes + ` (deleted via ${tech.name})`,
+                            performed_by: currentUser?.email
+                        }));
+                        
+                        await supabaseClient.from('audit_log').insert(auditEntries);
 
-                            // Delete partner's entry
-                            await supabaseClient
-                                .from('schedule_entries')
-                                .delete()
-                                .eq('technician_id', partnerTech.id)
-                                .eq('date', dateStr)
-                                .eq('q_number', job.q);
-                            
-                            // Update partner cell
-                            await reloadTechnicianDay(partnerTech, dayIndex, dateStr);
+                        // Batch delete all partner entries in one call
+                        const partnerIds = partnerTechs.map(t => t.id);
+                        await supabaseClient
+                            .from('schedule_entries')
+                            .delete()
+                            .in('technician_id', partnerIds)
+                            .eq('date', dateStr)
+                            .eq('q_number', job.q);
+                        
+                        // Batch refresh all partner cells
+                        await Promise.all(partnerTechs.map(partnerTech => 
+                            reloadTechnicianDay(partnerTech, dayIndex, dateStr)
+                        ));
+                        partnerTechs.forEach(partnerTech => {
                             updateCell(partnerTech, dayIndex);
-                            
                             cellsToRefresh.push({ techId: partnerTech.id, dateStr: dateStr });
-                        }
+                        });
                     }
                 }
                 
@@ -8474,75 +8481,79 @@
                 ];
 
                 // Also move all partner entries (same Q#, same source date)
+                let partnerTechs = [];
                 if (job.partner) {
                     const partnerNames = job.partner.split(',').map(p => p.trim());
-                    for (const partnerName of partnerNames) {
-                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
-                        if (partnerTech) {
-                            // Log to audit for each partner
-                            await supabaseClient
-                                .from('audit_log')
-                                .insert([{
-                                    action: 'job_moved',
-                                    technician_id: partnerTech.id,
-                                    technician_name: partnerTech.name,
-                                    date: sourceDateStr,
-                                    job_details: {
-                                        q_number: job.q,
-                                        client: job.client,
-                                        location: job.location,
-                                        task: job.task,
-                                        partner: sourceTech?.name,
-                                        is_night: job.isNight,
-                                        job_status: job.jobStatus
-                                    },
-                                    was_canceled: false,
-                                    notes: `Moved to ${dateStr} (via ${sourceTech?.name})`,
-                                    moved_to_tech_id: partnerTech.id,
-                                    moved_to_tech_name: partnerTech.name,
-                                    moved_to_date: dateStr,
-                                    performed_by: currentUser?.email
-                                }]);
+                    partnerTechs = partnerNames
+                        .map(name => TECHNICIANS.find(t => t.name === name))
+                        .filter(Boolean);
+                    
+                    if (partnerTechs.length > 0) {
+                        // Batch insert all audit logs in one call
+                        const auditEntries = partnerTechs.map(partnerTech => ({
+                            action: 'job_moved',
+                            technician_id: partnerTech.id,
+                            technician_name: partnerTech.name,
+                            date: sourceDateStr,
+                            job_details: {
+                                q_number: job.q,
+                                client: job.client,
+                                location: job.location,
+                                task: job.task,
+                                partner: sourceTech?.name,
+                                is_night: job.isNight,
+                                job_status: job.jobStatus
+                            },
+                            was_canceled: false,
+                            notes: `Moved to ${dateStr} (via ${sourceTech?.name})`,
+                            moved_to_tech_id: partnerTech.id,
+                            moved_to_tech_name: partnerTech.name,
+                            moved_to_date: dateStr,
+                            performed_by: currentUser?.email
+                        }));
+                        
+                        await supabaseClient.from('audit_log').insert(auditEntries);
 
-                            // Update partner's entry to new date
-                            await supabaseClient
-                                .from('schedule_entries')
-                                .update({ date: dateStr })
-                                .eq('technician_id', partnerTech.id)
-                                .eq('date', sourceDateStr)
-                                .eq('q_number', job.q);
-                            
+                        // Batch update all partner entries in one call
+                        const partnerIds = partnerTechs.map(t => t.id);
+                        await supabaseClient
+                            .from('schedule_entries')
+                            .update({ date: dateStr })
+                            .in('technician_id', partnerIds)
+                            .eq('date', sourceDateStr)
+                            .eq('q_number', job.q);
+                        
+                        partnerTechs.forEach(partnerTech => {
                             cellsToRefresh.push(
                                 { techId: partnerTech.id, dateStr: sourceDateStr },
                                 { techId: partnerTech.id, dateStr: dateStr }
                             );
-                        }
+                        });
                     }
                 }
 
-                // Refresh source and target cells locally
+                // Batch refresh all cells locally
+                const refreshPromises = [];
                 if (sourceTech) {
-                    await reloadTechnicianDay(sourceTech, dragData.sourceDayIndex, sourceDateStr);
-                    updateCell(sourceTech, dragData.sourceDayIndex);
+                    refreshPromises.push(reloadTechnicianDay(sourceTech, dragData.sourceDayIndex, sourceDateStr));
                 }
                 if (targetTech) {
-                    await reloadTechnicianDay(targetTech, targetDayIndex, dateStr);
-                    updateCell(targetTech, targetDayIndex);
+                    refreshPromises.push(reloadTechnicianDay(targetTech, targetDayIndex, dateStr));
                 }
-
-                // Refresh partner cells
-                if (job.partner) {
-                    const partnerNames = job.partner.split(',').map(p => p.trim());
-                    for (const partnerName of partnerNames) {
-                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
-                        if (partnerTech) {
-                            await reloadTechnicianDay(partnerTech, dragData.sourceDayIndex, sourceDateStr);
-                            updateCell(partnerTech, dragData.sourceDayIndex);
-                            await reloadTechnicianDay(partnerTech, targetDayIndex, dateStr);
-                            updateCell(partnerTech, targetDayIndex);
-                        }
-                    }
-                }
+                partnerTechs.forEach(partnerTech => {
+                    refreshPromises.push(reloadTechnicianDay(partnerTech, dragData.sourceDayIndex, sourceDateStr));
+                    refreshPromises.push(reloadTechnicianDay(partnerTech, targetDayIndex, dateStr));
+                });
+                
+                await Promise.all(refreshPromises);
+                
+                // Update UI after all data is loaded
+                if (sourceTech) updateCell(sourceTech, dragData.sourceDayIndex);
+                if (targetTech) updateCell(targetTech, targetDayIndex);
+                partnerTechs.forEach(partnerTech => {
+                    updateCell(partnerTech, dragData.sourceDayIndex);
+                    updateCell(partnerTech, targetDayIndex);
+                });
 
                 // Broadcast cell refresh for all affected cells
                 await broadcastCellRefresh(cellsToRefresh);
@@ -8600,55 +8611,59 @@
                 ];
 
                 // Also duplicate entries for all partners
+                let partnerTechs = [];
                 if (job.partner) {
                     const partnerNames = job.partner.split(',').map(p => p.trim());
                     const allPeopleOnJob = [targetTech?.name, ...partnerNames].filter(Boolean);
                     
-                    for (const partnerName of partnerNames) {
-                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
-                        if (partnerTech) {
-                            // This partner's "partner" field = everyone else on the job
-                            const othersOnJob = allPeopleOnJob.filter(name => name !== partnerName).join(', ');
-                            
-                            await supabaseClient
-                                .from('schedule_entries')
-                                .insert({
-                                    technician_id: partnerTech.id,
-                                    date: dateStr,
-                                    entry_type: 'job',
-                                    q_number: job.q,
-                                    client: job.client,
-                                    location: job.location,
-                                    task: job.task,
-                                    partner: othersOnJob,
-                                    is_night: job.isNight,
-                                    job_status: job.jobStatus,
-                                    notes: job.notes,
-                                    project_manager: job.projectManager
-                                });
-                            
+                    partnerTechs = partnerNames
+                        .map(name => TECHNICIANS.find(t => t.name === name))
+                        .filter(Boolean);
+                    
+                    if (partnerTechs.length > 0) {
+                        // Batch insert all partner entries in one call
+                        const partnerEntries = partnerTechs.map(partnerTech => {
+                            const othersOnJob = allPeopleOnJob.filter(name => name !== partnerTech.name).join(', ');
+                            return {
+                                technician_id: partnerTech.id,
+                                date: dateStr,
+                                entry_type: 'job',
+                                q_number: job.q,
+                                client: job.client,
+                                location: job.location,
+                                task: job.task,
+                                partner: othersOnJob,
+                                is_night: job.isNight,
+                                job_status: job.jobStatus,
+                                notes: job.notes,
+                                project_manager: job.projectManager
+                            };
+                        });
+                        
+                        await supabaseClient.from('schedule_entries').insert(partnerEntries);
+                        
+                        partnerTechs.forEach(partnerTech => {
                             cellsToRefresh.push({ techId: partnerTech.id, dateStr: dateStr });
-                        }
+                        });
                     }
                 }
 
-                // Refresh target cell locally
+                // Batch refresh all cells locally
+                const refreshPromises = [];
                 if (targetTech) {
-                    await reloadTechnicianDay(targetTech, targetDayIndex, dateStr);
-                    updateCell(targetTech, targetDayIndex);
+                    refreshPromises.push(reloadTechnicianDay(targetTech, targetDayIndex, dateStr));
                 }
-
-                // Refresh partner cells
-                if (job.partner) {
-                    const partnerNames = job.partner.split(',').map(p => p.trim());
-                    for (const partnerName of partnerNames) {
-                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
-                        if (partnerTech) {
-                            await reloadTechnicianDay(partnerTech, targetDayIndex, dateStr);
-                            updateCell(partnerTech, targetDayIndex);
-                        }
-                    }
-                }
+                partnerTechs.forEach(partnerTech => {
+                    refreshPromises.push(reloadTechnicianDay(partnerTech, targetDayIndex, dateStr));
+                });
+                
+                await Promise.all(refreshPromises);
+                
+                // Update UI after all data is loaded
+                if (targetTech) updateCell(targetTech, targetDayIndex);
+                partnerTechs.forEach(partnerTech => {
+                    updateCell(partnerTech, targetDayIndex);
+                });
 
                 // Broadcast cell refresh for all affected cells
                 await broadcastCellRefresh(cellsToRefresh);
