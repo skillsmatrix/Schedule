@@ -2788,16 +2788,28 @@
                             </div>
                             <div>
                                 <label style="display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.375rem;">Partners</label>
+                                <input type="text" id="partnerSearch" placeholder="Search partners..." oninput="filterPartnersList()" style="
+                                    width: 100%;
+                                    padding: 0.5rem 0.75rem;
+                                    border: 1px solid var(--border-color);
+                                    border-radius: 0.5rem 0.5rem 0 0;
+                                    font-size: 0.8125rem;
+                                    font-family: inherit;
+                                    background: var(--bg-secondary);
+                                    color: var(--text-primary);
+                                    box-sizing: border-box;
+                                    border-bottom: none;
+                                ">
                                 <div id="partnersContainer" style="
                                     max-height: 120px;
                                     overflow-y: auto;
                                     border: 1px solid var(--border-color);
-                                    border-radius: 0.5rem;
+                                    border-radius: 0 0 0.5rem 0.5rem;
                                     padding: 0.5rem;
                                     background: var(--bg-secondary);
                                 ">
-                                    ${TECHNICIANS.filter(t => t.id !== techId).map(t => `
-                                        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; cursor: pointer; font-size: 0.8125rem;">
+                                    ${TECHNICIANS.filter(t => t.id !== techId).sort((a, b) => a.name.localeCompare(b.name)).map(t => `
+                                        <label class="partner-option" data-name="${t.name.toLowerCase()}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; cursor: pointer; font-size: 0.8125rem;">
                                             <input type="checkbox" name="entryPartners" value="${t.name}" style="width: 1rem; height: 1rem; accent-color: var(--brand-primary);">
                                             ${t.name}
                                         </label>
@@ -3193,6 +3205,20 @@
         function getSelectedPartners() {
             return Array.from(document.querySelectorAll('input[name="entryPartners"]:checked'))
                 .map(cb => cb.value);
+        }
+
+        function filterPartnersList() {
+            const search = document.getElementById('partnerSearch')?.value.toLowerCase() || '';
+            const options = document.querySelectorAll('.partner-option');
+            
+            options.forEach(option => {
+                const name = option.dataset.name;
+                if (name.includes(search)) {
+                    option.style.display = 'flex';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
         }
 
         function switchEntryTab(tab) {
@@ -8428,7 +8454,7 @@
                         performed_by: currentUser?.email
                     }]);
 
-                // Update the entry to new technician and date
+                // Update the main entry to new technician and date
                 const { error } = await supabaseClient
                     .from('schedule_entries')
                     .update({
@@ -8438,6 +8464,34 @@
                     .eq('id', dragData.entryId);
 
                 if (error) throw error;
+
+                // Track cells to refresh
+                const cellsToRefresh = [
+                    { techId: dragData.sourceTechId, dateStr: sourceDateStr },
+                    { techId: targetTechId, dateStr: dateStr }
+                ];
+
+                // Also move all partner entries (same Q#, same source date)
+                if (job.partner) {
+                    const partnerNames = job.partner.split(',').map(p => p.trim());
+                    for (const partnerName of partnerNames) {
+                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
+                        if (partnerTech) {
+                            // Update partner's entry to new date
+                            await supabaseClient
+                                .from('schedule_entries')
+                                .update({ date: dateStr })
+                                .eq('technician_id', partnerTech.id)
+                                .eq('date', sourceDateStr)
+                                .eq('q_number', job.q);
+                            
+                            cellsToRefresh.push(
+                                { techId: partnerTech.id, dateStr: sourceDateStr },
+                                { techId: partnerTech.id, dateStr: dateStr }
+                            );
+                        }
+                    }
+                }
 
                 // Refresh source and target cells locally
                 if (sourceTech) {
@@ -8449,13 +8503,24 @@
                     updateCell(targetTech, targetDayIndex);
                 }
 
-                // Broadcast cell refresh for both source and target cells
-                await broadcastCellRefresh([
-                    { techId: dragData.sourceTechId, dateStr: sourceDateStr },
-                    { techId: targetTechId, dateStr: dateStr }
-                ]);
+                // Refresh partner cells
+                if (job.partner) {
+                    const partnerNames = job.partner.split(',').map(p => p.trim());
+                    for (const partnerName of partnerNames) {
+                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
+                        if (partnerTech) {
+                            await reloadTechnicianDay(partnerTech, dragData.sourceDayIndex, sourceDateStr);
+                            updateCell(partnerTech, dragData.sourceDayIndex);
+                            await reloadTechnicianDay(partnerTech, targetDayIndex, dateStr);
+                            updateCell(partnerTech, targetDayIndex);
+                        }
+                    }
+                }
 
-                showUpdateToast(`Job moved to ${targetTech?.name}`);
+                // Broadcast cell refresh for all affected cells
+                await broadcastCellRefresh(cellsToRefresh);
+
+                showUpdateToast(`Job moved to ${targetTech?.name}${job.partner ? ' (partners updated)' : ''}`);
 
             } catch (err) {
                 console.error('Error moving job:', err);
@@ -8477,10 +8542,12 @@
             const dateStr = toLocalDateString(targetDate);
 
             const job = dragData.job;
+            const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
 
             suppressRealtimeEvents(5000);
 
             try {
+                // Insert main entry
                 const { error } = await supabaseClient
                     .from('schedule_entries')
                     .insert({
@@ -8494,24 +8561,72 @@
                         partner: job.partner,
                         is_night: job.isNight,
                         job_status: job.jobStatus,
-                        notes: job.notes
+                        notes: job.notes,
+                        project_manager: job.projectManager
                     });
 
                 if (error) throw error;
 
+                // Track cells to refresh
+                const cellsToRefresh = [
+                    { techId: targetTechId, dateStr: dateStr }
+                ];
+
+                // Also duplicate entries for all partners
+                if (job.partner) {
+                    const partnerNames = job.partner.split(',').map(p => p.trim());
+                    const allPeopleOnJob = [targetTech?.name, ...partnerNames].filter(Boolean);
+                    
+                    for (const partnerName of partnerNames) {
+                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
+                        if (partnerTech) {
+                            // This partner's "partner" field = everyone else on the job
+                            const othersOnJob = allPeopleOnJob.filter(name => name !== partnerName).join(', ');
+                            
+                            await supabaseClient
+                                .from('schedule_entries')
+                                .insert({
+                                    technician_id: partnerTech.id,
+                                    date: dateStr,
+                                    entry_type: 'job',
+                                    q_number: job.q,
+                                    client: job.client,
+                                    location: job.location,
+                                    task: job.task,
+                                    partner: othersOnJob,
+                                    is_night: job.isNight,
+                                    job_status: job.jobStatus,
+                                    notes: job.notes,
+                                    project_manager: job.projectManager
+                                });
+                            
+                            cellsToRefresh.push({ techId: partnerTech.id, dateStr: dateStr });
+                        }
+                    }
+                }
+
                 // Refresh target cell locally
-                const targetTech = TECHNICIANS.find(t => t.id === targetTechId);
                 if (targetTech) {
                     await reloadTechnicianDay(targetTech, targetDayIndex, dateStr);
                     updateCell(targetTech, targetDayIndex);
                 }
 
-                // Broadcast cell refresh for target cell
-                await broadcastCellRefresh([
-                    { techId: targetTechId, dateStr: dateStr }
-                ]);
+                // Refresh partner cells
+                if (job.partner) {
+                    const partnerNames = job.partner.split(',').map(p => p.trim());
+                    for (const partnerName of partnerNames) {
+                        const partnerTech = TECHNICIANS.find(t => t.name === partnerName);
+                        if (partnerTech) {
+                            await reloadTechnicianDay(partnerTech, targetDayIndex, dateStr);
+                            updateCell(partnerTech, targetDayIndex);
+                        }
+                    }
+                }
 
-                showUpdateToast(`Job duplicated to ${targetTech?.name}`);
+                // Broadcast cell refresh for all affected cells
+                await broadcastCellRefresh(cellsToRefresh);
+
+                showUpdateToast(`Job duplicated to ${targetTech?.name}${job.partner ? ' (partners included)' : ''}`);
 
             } catch (err) {
                 console.error('Error duplicating job:', err);
