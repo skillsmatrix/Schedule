@@ -609,7 +609,7 @@
         async function loadTechnicians() {
             console.log('Loading technicians...');
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('technicians')
                     .select('*')
                     .order('name');
@@ -756,7 +756,7 @@
             const endDate = new Date(currentWeekStart);
             endDate.setDate(endDate.getDate() + 6);
 
-            const { data: entries, error } = await supabase
+            const { data: entries, error } = await supabaseClient
                 .from('schedule_entries')
                 .select('*')
                 .eq('technician_id', selectedTechId)
