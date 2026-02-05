@@ -607,18 +607,29 @@
 
         // Load technicians
         async function loadTechnicians() {
-            const { data, error } = await supabase
-                .from('technicians')
-                .select('*')
-                .order('name');
+            console.log('Loading technicians...');
+            try {
+                const { data, error } = await supabase
+                    .from('technicians')
+                    .select('*')
+                    .order('name');
 
-            if (error) {
-                console.error('Error loading technicians:', error);
-                return;
-            }
+                console.log('Technicians response:', { data, error });
 
-            TECHNICIANS = data || [];
-            populateTechSelect();
+                if (error) {
+                    console.error('Error loading technicians:', error);
+                    document.getElementById('techSelect').innerHTML = '<option value="">Error loading - check console</option>';
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    console.warn('No technicians found');
+                    document.getElementById('techSelect').innerHTML = '<option value="">No technicians found</option>';
+                    return;
+                }
+
+                TECHNICIANS = data;
+                populateTechSelect();
             
             // Check for saved tech in localStorage
             const savedTechId = localStorage.getItem('myScheduleTechId');
