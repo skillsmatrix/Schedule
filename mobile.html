@@ -631,14 +631,18 @@
                 TECHNICIANS = data;
                 populateTechSelect();
             
-            // Check for saved tech in localStorage
-            const savedTechId = localStorage.getItem('myScheduleTechId');
-            if (savedTechId) {
-                const tech = TECHNICIANS.find(t => t.id === savedTechId);
-                if (tech) {
-                    document.getElementById('techSelect').value = savedTechId;
-                    onTechChange();
+                // Check for saved tech in localStorage
+                const savedTechId = localStorage.getItem('myScheduleTechId');
+                if (savedTechId) {
+                    const tech = TECHNICIANS.find(t => t.id === savedTechId);
+                    if (tech) {
+                        document.getElementById('techSelect').value = savedTechId;
+                        onTechChange();
+                    }
                 }
+            } catch (err) {
+                console.error('Exception loading technicians:', err);
+                document.getElementById('techSelect').innerHTML = '<option value="">Error - check console</option>';
             }
         }
 
