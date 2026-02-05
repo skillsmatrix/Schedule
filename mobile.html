@@ -41,7 +41,10 @@
         .header {
             background: var(--brand-gradient);
             padding: 1rem 1rem 1.25rem;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
         }
 
@@ -110,7 +113,7 @@
             pointer-events: none;
         }
 
-        /* Week Navigator - Fixed at top */
+        /* Week Navigator - Fixed below header */
         .week-nav {
             display: none;
             align-items: center;
@@ -119,7 +122,7 @@
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
             position: fixed;
-            top: 0;
+            top: 118px;
             left: 0;
             right: 0;
             z-index: 90;
@@ -192,11 +195,11 @@
         .quick-weeks {
             display: none;
             gap: 0.5rem;
-            padding: 0.75rem 0.75rem;
+            padding: 1.5rem 0.75rem 0.75rem;
             background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border-color);
             position: fixed;
-            top: 52px;
+            top: 170px;
             left: 0;
             right: 0;
             z-index: 89;
@@ -224,6 +227,17 @@
             background: var(--brand-gradient);
             border-color: transparent;
             color: white;
+        }
+
+        /* Content */
+        .content {
+            padding: 1rem;
+            padding-bottom: 2rem;
+            margin-top: 118px;
+        }
+
+        .content.with-schedule {
+            margin-top: 222px;
         }
 
         .week-nav button {
@@ -309,10 +323,11 @@
         .content {
             padding: 1rem;
             padding-bottom: 2rem;
+            margin-top: 118px;
         }
 
         .content.with-schedule {
-            margin-top: 104px;
+            margin-top: 222px;
         }
 
         /* Empty State */
