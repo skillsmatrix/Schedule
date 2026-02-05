@@ -582,7 +582,7 @@
         const SUPABASE_URL = 'https://tcjaegtublrlkyxveloh.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjamFlZ3R1YmxybGt5eHZlbG9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzc4MzMsImV4cCI6MjA4Mzk1MzgzM30.4aNJQZ2REe_njrdVyhefDomnrKQo2zMo-iDJnGhxRXI';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // State
         let TECHNICIANS = [];
