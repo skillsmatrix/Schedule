@@ -1066,6 +1066,9 @@
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
 
+            // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
+
             modalTitle.textContent = job.q_number || 'Job Details';
 
             const jobDate = new Date(job.date);
@@ -1134,6 +1137,8 @@
         function closeModal(event) {
             if (event && event.target !== event.currentTarget) return;
             document.getElementById('jobModal').classList.remove('open');
+            // Re-enable background scrolling
+            document.body.style.overflow = '';
         }
 
         // Close modal on escape
