@@ -41,8 +41,10 @@
         .header {
             background: var(--brand-gradient);
             padding: 1rem 1rem 1.25rem;
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
         }
 
@@ -50,7 +52,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         .header h1 {
@@ -68,48 +70,66 @@
             border-radius: 0.5rem;
         }
 
-        /* Technician Selector */
-        .tech-selector {
+        /* Selector Row */
+        .selector-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .selector-wrap {
+            flex: 1;
             position: relative;
         }
 
-        .tech-selector select {
+        .selector-wrap select {
             width: 100%;
-            padding: 0.875rem 1rem;
-            font-size: 1rem;
+            padding: 0.75rem 0.875rem;
+            font-size: 0.875rem;
             font-family: inherit;
             font-weight: 600;
             border: none;
-            border-radius: 0.75rem;
+            border-radius: 0.5rem;
             background: white;
             color: var(--text-primary);
             appearance: none;
             cursor: pointer;
-            box-shadow: var(--shadow-lg);
+            box-shadow: var(--shadow);
         }
 
-        .tech-selector::after {
+        .selector-wrap select:disabled {
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .selector-wrap::after {
             content: '▼';
             position: absolute;
-            right: 1rem;
+            right: 0.75rem;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 0.75rem;
+            font-size: 0.625rem;
             color: var(--text-muted);
             pointer-events: none;
         }
 
-        /* Week Navigator */
+        /* Week Navigator - Fixed below header */
         .week-nav {
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: space-between;
             padding: 0.75rem 1rem;
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 108px;
+            position: fixed;
+            top: 118px;
+            left: 0;
+            right: 0;
             z-index: 90;
+        }
+
+        .week-nav.visible {
+            display: flex;
         }
 
         .week-nav button {
@@ -173,12 +193,21 @@
 
         /* Quick Week Buttons */
         .quick-weeks {
-            display: flex;
+            display: none;
             gap: 0.5rem;
             padding: 0.75rem 1rem;
             background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border-color);
             overflow-x: auto;
+            position: fixed;
+            top: 170px;
+            left: 0;
+            right: 0;
+            z-index: 89;
+        }
+
+        .quick-weeks.visible {
+            display: flex;
         }
 
         .quick-week-btn {
@@ -204,6 +233,11 @@
         .content {
             padding: 1rem;
             padding-bottom: 2rem;
+            margin-top: 118px;
+        }
+
+        .content.with-schedule {
+            margin-top: 222px;
         }
 
         /* Empty State */
@@ -530,15 +564,22 @@
             <h1>My Schedule</h1>
             <a href="index.html" class="header-link">Full Schedule →</a>
         </div>
-        <div class="tech-selector">
-            <select id="techSelect" onchange="onTechChange()">
-                <option value="">Select your name...</option>
-            </select>
+        <div class="selector-row">
+            <div class="selector-wrap">
+                <select id="workstreamSelect" onchange="onWorkstreamChange()">
+                    <option value="">Select workstream...</option>
+                </select>
+            </div>
+            <div class="selector-wrap">
+                <select id="techSelect" onchange="onTechChange()" disabled>
+                    <option value="">Select your name...</option>
+                </select>
+            </div>
         </div>
     </header>
 
-    <!-- Week Navigation -->
-    <nav class="week-nav" id="weekNav" style="display: none;">
+    <!-- Week Navigation - Fixed position -->
+    <nav class="week-nav" id="weekNav">
         <button onclick="previousWeek()">←</button>
         <div class="week-info">
             <div class="week-label" id="weekLabel">Week 5</div>
@@ -548,7 +589,7 @@
     </nav>
 
     <!-- Quick Week Selection -->
-    <div class="quick-weeks" id="quickWeeks" style="display: none;">
+    <div class="quick-weeks" id="quickWeeks">
         <button class="quick-week-btn" onclick="goToWeek(-1)" id="prevWeekBtn">Last Week</button>
         <button class="quick-week-btn active" onclick="goToWeek(0)" id="thisWeekBtn">This Week</button>
         <button class="quick-week-btn" onclick="goToWeek(1)" id="nextWeekBtn">Next Week</button>
@@ -586,6 +627,8 @@
 
         // State
         let TECHNICIANS = [];
+        let WORKSTREAMS = [];
+        let selectedWorkstream = null;
         let selectedTechId = null;
         let currentWeekStart = getMonday(new Date());
         let thisWeekStart = getMonday(new Date());
@@ -618,45 +661,114 @@
 
                 if (error) {
                     console.error('Error loading technicians:', error);
-                    document.getElementById('techSelect').innerHTML = '<option value="">Error loading - check console</option>';
+                    document.getElementById('workstreamSelect').innerHTML = '<option value="">Error loading - check console</option>';
                     return;
                 }
 
                 if (!data || data.length === 0) {
                     console.warn('No technicians found');
-                    document.getElementById('techSelect').innerHTML = '<option value="">No technicians found</option>';
+                    document.getElementById('workstreamSelect').innerHTML = '<option value="">No technicians found</option>';
                     return;
                 }
 
                 TECHNICIANS = data;
-                populateTechSelect();
+                
+                // Extract unique workstreams
+                WORKSTREAMS = [...new Set(data.map(t => t.workstream).filter(Boolean))].sort();
+                populateWorkstreamSelect();
             
-                // Check for saved tech in localStorage
+                // Check for saved selections in localStorage
+                const savedWorkstream = localStorage.getItem('myScheduleWorkstream');
                 const savedTechId = localStorage.getItem('myScheduleTechId');
-                if (savedTechId) {
-                    const tech = TECHNICIANS.find(t => t.id === savedTechId);
-                    if (tech) {
-                        document.getElementById('techSelect').value = savedTechId;
-                        onTechChange();
+                
+                if (savedWorkstream && WORKSTREAMS.includes(savedWorkstream)) {
+                    document.getElementById('workstreamSelect').value = savedWorkstream;
+                    onWorkstreamChange();
+                    
+                    if (savedTechId) {
+                        const tech = TECHNICIANS.find(t => t.id === savedTechId && t.workstream === savedWorkstream);
+                        if (tech) {
+                            document.getElementById('techSelect').value = savedTechId;
+                            onTechChange();
+                        }
                     }
                 }
             } catch (err) {
                 console.error('Exception loading technicians:', err);
-                document.getElementById('techSelect').innerHTML = '<option value="">Error - check console</option>';
+                document.getElementById('workstreamSelect').innerHTML = '<option value="">Error - check console</option>';
             }
         }
 
-        // Populate tech dropdown
+        // Populate workstream dropdown
+        function populateWorkstreamSelect() {
+            const select = document.getElementById('workstreamSelect');
+            select.innerHTML = '<option value="">Select workstream...</option>';
+            
+            WORKSTREAMS.forEach(ws => {
+                const option = document.createElement('option');
+                option.value = ws;
+                option.textContent = ws;
+                select.appendChild(option);
+            });
+        }
+
+        // When workstream is selected
+        function onWorkstreamChange() {
+            const select = document.getElementById('workstreamSelect');
+            selectedWorkstream = select.value;
+            const techSelect = document.getElementById('techSelect');
+            
+            if (selectedWorkstream) {
+                localStorage.setItem('myScheduleWorkstream', selectedWorkstream);
+                techSelect.disabled = false;
+                populateTechSelect();
+            } else {
+                localStorage.removeItem('myScheduleWorkstream');
+                techSelect.disabled = true;
+                techSelect.innerHTML = '<option value="">Select your name...</option>';
+                hideSchedule();
+            }
+            
+            // Reset tech selection
+            selectedTechId = null;
+            localStorage.removeItem('myScheduleTechId');
+            hideSchedule();
+        }
+
+        // Populate tech dropdown (filtered by workstream)
         function populateTechSelect() {
             const select = document.getElementById('techSelect');
             select.innerHTML = '<option value="">Select your name...</option>';
             
-            TECHNICIANS.forEach(tech => {
+            const filteredTechs = TECHNICIANS.filter(t => t.workstream === selectedWorkstream);
+            
+            filteredTechs.forEach(tech => {
                 const option = document.createElement('option');
                 option.value = tech.id;
                 option.textContent = tech.name;
                 select.appendChild(option);
             });
+        }
+
+        // Hide schedule UI
+        function hideSchedule() {
+            document.getElementById('weekNav').classList.remove('visible');
+            document.getElementById('quickWeeks').classList.remove('visible');
+            document.getElementById('content').classList.remove('with-schedule');
+            document.getElementById('content').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">👆</div>
+                    <div class="empty-state-text">Select your workstream and name</div>
+                    <div class="empty-state-sub">to view your schedule</div>
+                </div>
+            `;
+        }
+
+        // Show schedule UI
+        function showScheduleUI() {
+            document.getElementById('weekNav').classList.add('visible');
+            document.getElementById('quickWeeks').classList.add('visible');
+            document.getElementById('content').classList.add('with-schedule');
         }
 
         // When tech is selected
@@ -666,20 +778,11 @@
 
             if (selectedTechId) {
                 localStorage.setItem('myScheduleTechId', selectedTechId);
-                document.getElementById('weekNav').style.display = 'flex';
-                document.getElementById('quickWeeks').style.display = 'flex';
+                showScheduleUI();
                 loadSchedule();
             } else {
                 localStorage.removeItem('myScheduleTechId');
-                document.getElementById('weekNav').style.display = 'none';
-                document.getElementById('quickWeeks').style.display = 'none';
-                document.getElementById('content').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">👆</div>
-                        <div class="empty-state-text">Select your name above</div>
-                        <div class="empty-state-sub">to view your schedule</div>
-                    </div>
-                `;
+                hideSchedule();
             }
         }
 
