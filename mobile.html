@@ -198,6 +198,114 @@
             padding: 0.75rem 1rem;
             background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border-color);
+            position: fixed;
+            top: 170px;
+            left: 0;
+            right: 0;
+            z-index: 89;
+            justify-content: center;
+        }
+
+        .quick-weeks.visible {
+            display: flex;
+        }
+
+        .quick-week-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 2rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .quick-week-btn.active {
+            background: var(--brand-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        /* Content */
+        .content {
+            padding: 1rem;
+            padding-bottom: 2rem;
+            margin-top: 118px;
+        }
+
+        .content.with-schedule {
+            margin-top: 222px;
+        }
+
+        .week-nav button {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .week-nav button:active {
+            background: var(--bg-tertiary);
+        }
+
+        .week-info {
+            text-align: center;
+        }
+
+        .week-label {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .week-dates {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        .week-badge {
+            display: inline-block;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 1rem;
+            margin-left: 0.375rem;
+            text-transform: uppercase;
+        }
+
+        .week-badge.current {
+            background: #10b98120;
+            color: #10b981;
+        }
+
+        .week-badge.next {
+            background: #3b82f620;
+            color: #3b82f6;
+        }
+
+        .week-badge.past {
+            background: #64748b20;
+            color: #64748b;
+        }
+
+        /* Quick Week Buttons */
+        .quick-weeks {
+            display: none;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
             overflow-x: auto;
             position: fixed;
             top: 170px;
@@ -446,7 +554,8 @@
             width: 100%;
             max-height: 85vh;
             border-radius: 1.5rem 1.5rem 0 0;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             animation: slideUp 0.25s ease;
         }
 
@@ -465,6 +574,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .modal-title {
@@ -489,6 +599,8 @@
         .modal-body {
             padding: 1rem;
             overflow-y: auto;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
         }
 
         .detail-row {
