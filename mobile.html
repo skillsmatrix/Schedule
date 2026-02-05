@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Schedule - Water BU</title>
+    <link rel="icon" type="image/x-icon" href="https://mgroupltd.com/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --brand-primary: #E91388;
+            --brand-secondary: #F7941D;
+            --brand-gradient: linear-gradient(135deg, #E91388 0%, #F7941D 100%);
+            --bg-primary: #f1f5f9;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Header */
+        .header {
+            background: var(--brand-gradient);
+            padding: 1rem 1rem 1.25rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .header-link {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            padding: 0.375rem 0.75rem;
+            background: rgba(255,255,255,0.15);
+            border-radius: 0.5rem;
+        }
+
+        /* Technician Selector */
+        .tech-selector {
+            position: relative;
+        }
+
+        .tech-selector select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+            font-weight: 600;
+            border: none;
+            border-radius: 0.75rem;
+            background: white;
+            color: var(--text-primary);
+            appearance: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .tech-selector::after {
+            content: '▼';
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* Week Navigator */
+        .week-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 108px;
+            z-index: 90;
+        }
+
+        .week-nav button {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .week-nav button:active {
+            background: var(--bg-tertiary);
+        }
+
+        .week-info {
+            text-align: center;
+        }
+
+        .week-label {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .week-dates {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        .week-badge {
+            display: inline-block;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 1rem;
+            margin-left: 0.375rem;
+            text-transform: uppercase;
+        }
+
+        .week-badge.current {
+            background: #10b98120;
+            color: #10b981;
+        }
+
+        .week-badge.next {
+            background: #3b82f620;
+            color: #3b82f6;
+        }
+
+        .week-badge.past {
+            background: #64748b20;
+            color: #64748b;
+        }
+
+        /* Quick Week Buttons */
+        .quick-weeks {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .quick-week-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 2rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .quick-week-btn.active {
+            background: var(--brand-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        /* Content */
+        .content {
+            padding: 1rem;
+            padding-bottom: 2rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state-text {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .empty-state-sub {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Day Card */
+        .day-card {
+            background: var(--bg-secondary);
+            border-radius: 1rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .day-header {
+            padding: 0.875rem 1rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        .day-date {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .day-header.today {
+            background: var(--brand-gradient);
+        }
+
+        .day-header.today .day-name,
+        .day-header.today .day-date {
+            color: white;
+        }
+
+        .day-content {
+            padding: 0.5rem;
+        }
+
+        .day-empty {
+            padding: 1.5rem 1rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Job Item */
+        .job-item {
+            padding: 0.875rem;
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-left: 4px solid var(--brand-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .job-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .job-item:active {
+            background: var(--border-color);
+        }
+
+        .job-item.night {
+            border-left-color: #6366f1;
+            background: #6366f110;
+        }
+
+        .job-item.inactive {
+            border-left-color: #ef4444;
+            opacity: 0.8;
+        }
+
+        .job-item.pending {
+            border-left-color: #f59e0b;
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.375rem;
+        }
+
+        .job-q {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--brand-primary);
+        }
+
+        .job-status {
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        .job-status.live {
+            background: #10b98120;
+            color: #10b981;
+        }
+
+        .job-status.pending {
+            background: #f59e0b20;
+            color: #f59e0b;
+        }
+
+        .job-status.inactive {
+            background: #ef444420;
+            color: #ef4444;
+        }
+
+        .job-client {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .job-location {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .job-meta {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .job-arrow {
+            color: var(--text-muted);
+            font-size: 1.25rem;
+        }
+
+        /* Status Entry */
+        .status-item {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9375rem;
+        }
+
+        .status-item.leave { background: #10b98120; color: #10b981; }
+        .status-item.training { background: #8b5cf620; color: #8b5cf6; }
+        .status-item.sickness { background: #f43f5e20; color: #f43f5e; }
+        .status-item.office { background: #0ea5e920; color: #0ea5e9; }
+        .status-item.night { background: #6366f120; color: #6366f1; }
+        .status-item.rest { background: #f59e0b20; color: #f59e0b; }
+        .status-item.wfh { background: #14b8a620; color: #14b8a6; }
+        .status-item.travel { background: #ec489920; color: #ec4899; }
+
+        /* Job Detail Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            width: 100%;
+            max-height: 85vh;
+            border-radius: 1.5rem 1.5rem 0 0;
+            overflow: hidden;
+            animation: slideUp 0.25s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 1rem 1rem 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: var(--bg-tertiary);
+            border-radius: 50%;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body {
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .detail-row {
+            padding: 0.875rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .detail-value.highlight {
+            color: var(--brand-primary);
+            font-weight: 700;
+        }
+
+        .partners-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            margin-top: 0.25rem;
+        }
+
+        .partner-tag {
+            background: var(--bg-tertiary);
+            padding: 0.375rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--brand-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <h1>My Schedule</h1>
+            <a href="index.html" class="header-link">Full Schedule →</a>
+        </div>
+        <div class="tech-selector">
+            <select id="techSelect" onchange="onTechChange()">
+                <option value="">Select your name...</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Week Navigation -->
+    <nav class="week-nav" id="weekNav" style="display: none;">
+        <button onclick="previousWeek()">←</button>
+        <div class="week-info">
+            <div class="week-label" id="weekLabel">Week 5</div>
+            <div class="week-dates" id="weekDates">27 Jan - 2 Feb</div>
+        </div>
+        <button onclick="nextWeek()">→</button>
+    </nav>
+
+    <!-- Quick Week Selection -->
+    <div class="quick-weeks" id="quickWeeks" style="display: none;">
+        <button class="quick-week-btn" onclick="goToWeek(-1)" id="prevWeekBtn">Last Week</button>
+        <button class="quick-week-btn active" onclick="goToWeek(0)" id="thisWeekBtn">This Week</button>
+        <button class="quick-week-btn" onclick="goToWeek(1)" id="nextWeekBtn">Next Week</button>
+    </div>
+
+    <!-- Content -->
+    <main class="content" id="content">
+        <div class="empty-state">
+            <div class="empty-state-icon">👆</div>
+            <div class="empty-state-text">Select your name above</div>
+            <div class="empty-state-sub">to view your schedule</div>
+        </div>
+    </main>
+
+    <!-- Job Detail Modal -->
+    <div class="modal-overlay" id="jobModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Job Details</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase config
+        const SUPABASE_URL = 'https://tcjaegtublrlkyxveloh.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjamFlZ3R1YmxybGt5eHZlbG9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY3NzYzMjMsImV4cCI6MjA1MjM1MjMyM30.aDiffOF7gYMvr5WJF1TZeGlXHooWJCFVpFxE89o8S-0';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // State
+        let TECHNICIANS = [];
+        let selectedTechId = null;
+        let currentWeekStart = getMonday(new Date());
+        let thisWeekStart = getMonday(new Date());
+
+        // Get Monday of a given week
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        // Format date as YYYY-MM-DD
+        function toDateString(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        // Load technicians
+        async function loadTechnicians() {
+            const { data, error } = await supabase
+                .from('technicians')
+                .select('*')
+                .eq('is_active', true)
+                .order('name');
+
+            if (error) {
+                console.error('Error loading technicians:', error);
+                return;
+            }
+
+            TECHNICIANS = data;
+            populateTechSelect();
+            
+            // Check for saved tech in localStorage
+            const savedTechId = localStorage.getItem('myScheduleTechId');
+            if (savedTechId) {
+                const tech = TECHNICIANS.find(t => t.id === savedTechId);
+                if (tech) {
+                    document.getElementById('techSelect').value = savedTechId;
+                    onTechChange();
+                }
+            }
+        }
+
+        // Populate tech dropdown
+        function populateTechSelect() {
+            const select = document.getElementById('techSelect');
+            select.innerHTML = '<option value="">Select your name...</option>';
+            
+            TECHNICIANS.forEach(tech => {
+                const option = document.createElement('option');
+                option.value = tech.id;
+                option.textContent = tech.name;
+                select.appendChild(option);
+            });
+        }
+
+        // When tech is selected
+        function onTechChange() {
+            const select = document.getElementById('techSelect');
+            selectedTechId = select.value;
+
+            if (selectedTechId) {
+                localStorage.setItem('myScheduleTechId', selectedTechId);
+                document.getElementById('weekNav').style.display = 'flex';
+                document.getElementById('quickWeeks').style.display = 'flex';
+                loadSchedule();
+            } else {
+                localStorage.removeItem('myScheduleTechId');
+                document.getElementById('weekNav').style.display = 'none';
+                document.getElementById('quickWeeks').style.display = 'none';
+                document.getElementById('content').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👆</div>
+                        <div class="empty-state-text">Select your name above</div>
+                        <div class="empty-state-sub">to view your schedule</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Navigate weeks
+        function previousWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            loadSchedule();
+        }
+
+        function nextWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            loadSchedule();
+        }
+
+        function goToWeek(offset) {
+            currentWeekStart = new Date(thisWeekStart);
+            currentWeekStart.setDate(currentWeekStart.getDate() + (offset * 7));
+            loadSchedule();
+        }
+
+        // Update week display
+        function updateWeekDisplay() {
+            const weekNum = getWeekNumber(currentWeekStart);
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(endDate.getDate() + 6);
+
+            const startStr = currentWeekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            const endStr = endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+            // Determine week badge
+            const diffWeeks = Math.round((currentWeekStart - thisWeekStart) / (7 * 24 * 60 * 60 * 1000));
+            let badge = '';
+            if (diffWeeks === 0) {
+                badge = '<span class="week-badge current">This Week</span>';
+            } else if (diffWeeks === 1) {
+                badge = '<span class="week-badge next">Next Week</span>';
+            } else if (diffWeeks === -1) {
+                badge = '<span class="week-badge past">Last Week</span>';
+            }
+
+            document.getElementById('weekLabel').innerHTML = `Week ${weekNum}${badge}`;
+            document.getElementById('weekDates').textContent = `${startStr} - ${endStr}`;
+
+            // Update quick week buttons
+            document.querySelectorAll('.quick-week-btn').forEach(btn => btn.classList.remove('active'));
+            if (diffWeeks === -1) document.getElementById('prevWeekBtn').classList.add('active');
+            else if (diffWeeks === 0) document.getElementById('thisWeekBtn').classList.add('active');
+            else if (diffWeeks === 1) document.getElementById('nextWeekBtn').classList.add('active');
+        }
+
+        // Get ISO week number
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        // Load schedule for selected tech
+        async function loadSchedule() {
+            if (!selectedTechId) return;
+
+            updateWeekDisplay();
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div>Loading schedule...</div>
+                </div>
+            `;
+
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(endDate.getDate() + 6);
+
+            const { data: entries, error } = await supabase
+                .from('schedule_entries')
+                .select('*')
+                .eq('technician_id', selectedTechId)
+                .gte('date', toDateString(currentWeekStart))
+                .lte('date', toDateString(endDate))
+                .order('date');
+
+            if (error) {
+                console.error('Error loading schedule:', error);
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <div class="empty-state-text">Error loading schedule</div>
+                        <div class="empty-state-sub">${error.message}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            renderSchedule(entries);
+        }
+
+        // Render schedule
+        function renderSchedule(entries) {
+            const content = document.getElementById('content');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            let html = '';
+
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(currentWeekStart);
+                dayDate.setDate(dayDate.getDate() + i);
+                const dateStr = toDateString(dayDate);
+                const isToday = dayDate.getTime() === today.getTime();
+                const isPast = dayDate < today;
+
+                const dayEntries = entries.filter(e => e.date === dateStr);
+                const jobs = dayEntries.filter(e => e.entry_type === 'job');
+                const statuses = dayEntries.filter(e => e.entry_type === 'status');
+
+                const dateDisplay = dayDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+                html += `
+                    <div class="day-card" style="${isPast ? 'opacity: 0.6;' : ''}">
+                        <div class="day-header ${isToday ? 'today' : ''}">
+                            <span class="day-name">${days[i]}</span>
+                            <span class="day-date">${dateDisplay}</span>
+                        </div>
+                        <div class="day-content">
+                `;
+
+                if (statuses.length > 0) {
+                    const status = statuses[0];
+                    const statusLabels = {
+                        leave: '🌴 Annual Leave',
+                        training: '📚 Training',
+                        sickness: '🤒 Sickness',
+                        office: '🏢 Office',
+                        night: '🌙 Night Shift',
+                        rest: '😴 Rest Day',
+                        wfh: '🏠 Working from Home',
+                        travel: '✈️ Travel'
+                    };
+                    html += `
+                        <div class="status-item ${status.status_type}">
+                            ${statusLabels[status.status_type] || status.status_type}
+                            ${status.status_text ? `<br><span style="font-weight: 400; font-size: 0.8125rem;">${status.status_text}</span>` : ''}
+                        </div>
+                    `;
+                } else if (jobs.length > 0) {
+                    jobs.forEach(job => {
+                        const statusClass = job.job_status === 'inactive' ? 'inactive' : job.job_status === 'pending' ? 'pending' : '';
+                        const nightClass = job.is_night ? 'night' : '';
+                        
+                        html += `
+                            <div class="job-item ${statusClass} ${nightClass}" onclick='showJobDetail(${JSON.stringify(job).replace(/'/g, "\\'")})'>
+                                <div class="job-header">
+                                    <span class="job-q">${job.q_number || 'No Q#'}</span>
+                                    <span class="job-status ${job.job_status || 'live'}">${job.job_status || 'Live'}</span>
+                                </div>
+                                <div class="job-client">${job.client || 'No client'}</div>
+                                <div class="job-location">📍 ${job.location || 'No location'}</div>
+                                ${job.partner || job.is_night ? `
+                                    <div class="job-meta">
+                                        ${job.partner ? `<span>👥 ${job.partner}</span>` : ''}
+                                        ${job.is_night ? '<span>🌙 Night</span>' : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `<div class="day-empty">No jobs scheduled</div>`;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+        }
+
+        // Show job detail modal
+        function showJobDetail(job) {
+            const modal = document.getElementById('jobModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = job.q_number || 'Job Details';
+
+            const jobDate = new Date(job.date);
+            const dateStr = jobDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+            let partnersHtml = '';
+            if (job.partner) {
+                const partners = job.partner.split(',').map(p => p.trim());
+                partnersHtml = `
+                    <div class="detail-row">
+                        <div class="detail-label">Working With</div>
+                        <div class="partners-list">
+                            ${partners.map(p => `<span class="partner-tag">👤 ${p}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            modalBody.innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">Q Number</div>
+                    <div class="detail-value highlight">${job.q_number || 'Not specified'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Status</div>
+                    <div class="detail-value">
+                        <span class="job-status ${job.job_status || 'live'}" style="font-size: 0.875rem;">${job.job_status || 'Live'}</span>
+                        ${job.is_night ? '<span class="job-status" style="background: #6366f120; color: #6366f1; font-size: 0.875rem; margin-left: 0.5rem;">🌙 Night Shift</span>' : ''}
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Date</div>
+                    <div class="detail-value">${dateStr}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Client</div>
+                    <div class="detail-value">${job.client || 'Not specified'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Location</div>
+                    <div class="detail-value">${job.location || 'Not specified'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Task</div>
+                    <div class="detail-value">${job.task || 'Not specified'}</div>
+                </div>
+                ${partnersHtml}
+                ${job.project_manager ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Project Manager</div>
+                        <div class="detail-value">${job.project_manager}</div>
+                    </div>
+                ` : ''}
+                ${job.notes ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Notes</div>
+                        <div class="detail-value" style="white-space: pre-wrap;">${job.notes}</div>
+                    </div>
+                ` : ''}
+            `;
+
+            modal.classList.add('open');
+        }
+
+        // Close modal
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('jobModal').classList.remove('open');
+        }
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Initialize
+        loadTechnicians();
+    </script>
+</body>
+</html>
