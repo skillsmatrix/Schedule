@@ -1603,7 +1603,7 @@
                     <polyline points="10 9 9 9 8 9"/>
                 </svg>
             </button>
-            <a href="mobile.html" class="btn-icon" title="Mobile View" style="text-decoration: none;">
+            <a href="https://skillsmatrix.github.io/schedule/mobile" class="btn-icon" title="Mobile View" style="text-decoration: none;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                     <line x1="12" y1="18" x2="12.01" y2="18"/>
@@ -5486,7 +5486,8 @@
                         partner: entry.partner,
                         isNight: entry.is_night || false,
                         jobStatus: entry.job_status || 'live',
-                        notes: entry.notes || ''
+                        notes: entry.notes || '',
+                        projectManager: entry.project_manager || ''
                     });
                 }
             });
@@ -6003,6 +6004,12 @@
                                             <div class="panel-job-detail" style="grid-column: span 2;">
                                                 <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Notes</div>
                                                 <div class="panel-job-detail-value" style="color: ${colors.text}; font-style: italic;">${job.notes}</div>
+                                            </div>
+                                            ` : ''}
+                                            ${job.projectManager ? `
+                                            <div class="panel-job-detail" style="grid-column: span 2;">
+                                                <div class="panel-job-detail-label" style="${job.isNight ? 'color: #a5b4fc;' : ''}">Project Manager</div>
+                                                <div class="panel-job-detail-value" style="color: ${colors.text};">${job.projectManager}</div>
                                             </div>
                                             ` : ''}
                                         </div>
